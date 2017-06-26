@@ -4,19 +4,23 @@
 <head>
   <meta charset="utf-8">
   
-  <title>求雨巫师的笔记本 | Rainmaker&#39;s Notebook</title>
+  <title>MPI-3 学习笔记（二）：One-sided Communication | Rainmaker&#39;s Notebook</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="这里主要给我记录那些我折腾过的计算机相关的东西的操作过程。 这里的记录时效性不一。我会记录每篇文章的时间和更新。如果你依据站点内文章的记录来操作遇到问题时，请先 Google 解决，上面的聪明人比我多得多。能看到这个站点的你应该有访问 Google 的能力。 站点的取名是因为我觉得计算机和计算机程序有点像以前的求雨巫师。一方面，现在生活中的计算机和其用处无处不在，然而计算机是怎么完成这些工作的又">
-<meta name="keywords" content="helloworld">
+  <meta name="description" content="MPI-3 单边通信（One-sided Communication）特性学习笔记。">
+<meta name="keywords" content="mpi">
 <meta property="og:type" content="article">
-<meta property="og:title" content="求雨巫师的笔记本">
-<meta property="og:url" content="http://enigmahuang.github.io/2016/11/14/HelloWorld/index.html">
+<meta property="og:title" content="MPI-3 学习笔记（二）：One-sided Communication">
+<meta property="og:url" content="http://enigmahuang.github.io/2017/06/26/MPI3-OSC/index.html">
 <meta property="og:site_name" content="Rainmaker&#39;s Notebook">
-<meta property="og:description" content="这里主要给我记录那些我折腾过的计算机相关的东西的操作过程。 这里的记录时效性不一。我会记录每篇文章的时间和更新。如果你依据站点内文章的记录来操作遇到问题时，请先 Google 解决，上面的聪明人比我多得多。能看到这个站点的你应该有访问 Google 的能力。 站点的取名是因为我觉得计算机和计算机程序有点像以前的求雨巫师。一方面，现在生活中的计算机和其用处无处不在，然而计算机是怎么完成这些工作的又">
-<meta property="og:updated_time" content="2017-06-23T16:17:31.711Z">
+<meta property="og:description" content="MPI-3 单边通信（One-sided Communication）特性学习笔记。">
+<meta property="og:image" content="http://wx2.sinaimg.cn/large/db02a3d8gy1fgyyk0phh7j20aa07njrk.jpg">
+<meta property="og:image" content="http://wx3.sinaimg.cn/large/db02a3d8gy1fgyyk1xxqfj20jv07rdgg.jpg">
+<meta property="og:image" content="http://wx4.sinaimg.cn/large/db02a3d8gy1fgyyk5276zj20j00843z6.jpg">
+<meta property="og:updated_time" content="2017-06-26T15:22:36.990Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="求雨巫师的笔记本">
-<meta name="twitter:description" content="这里主要给我记录那些我折腾过的计算机相关的东西的操作过程。 这里的记录时效性不一。我会记录每篇文章的时间和更新。如果你依据站点内文章的记录来操作遇到问题时，请先 Google 解决，上面的聪明人比我多得多。能看到这个站点的你应该有访问 Google 的能力。 站点的取名是因为我觉得计算机和计算机程序有点像以前的求雨巫师。一方面，现在生活中的计算机和其用处无处不在，然而计算机是怎么完成这些工作的又">
+<meta name="twitter:title" content="MPI-3 学习笔记（二）：One-sided Communication">
+<meta name="twitter:description" content="MPI-3 单边通信（One-sided Communication）特性学习笔记。">
+<meta name="twitter:image" content="http://wx2.sinaimg.cn/large/db02a3d8gy1fgyyk0phh7j20aa07njrk.jpg">
   
     <link rel="alternative" href="/atom.xml" title="Rainmaker&#39;s Notebook" type="application/atom+xml">
   
@@ -68,10 +72,10 @@
   </div>
 </header>
     <div class="outer">
-      <section id="main"><article id="post-HelloWorld" class="article article-type-post" itemscope itemprop="blogPost">
+      <section id="main"><article id="post-MPI3-OSC" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
-    <a href="/2016/11/14/HelloWorld/" class="article-date">
-  <time datetime="2016-11-14T04:56:08.000Z" itemprop="datePublished">2016-11-14</time>
+    <a href="/2017/06/26/MPI3-OSC/" class="article-date">
+  <time datetime="2017-06-26T14:46:19.000Z" itemprop="datePublished">2017-06-26</time>
 </a>
     
   </div>
@@ -82,7 +86,7 @@
         
   
     <h1 class="article-title" itemprop="name">
-      求雨巫师的笔记本
+      MPI-3 学习笔记（二）：One-sided Communication
     </h1>
   
 
@@ -90,23 +94,107 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <ul>
-<li>这里主要给我记录那些我折腾过的计算机相关的东西的操作过程。</li>
-<li>这里的记录时效性不一。我会记录每篇文章的时间和更新。如果你依据站点内文章的记录来操作遇到问题时，请先 Google 解决，上面的聪明人比我多得多。能看到这个站点的你应该有访问 Google 的能力。</li>
-<li>站点的取名是因为我觉得计算机和计算机程序有点像以前的求雨巫师。一方面，现在生活中的计算机和其用处无处不在，然而计算机是怎么完成这些工作的又不为常人所知，『求雨巫师的神奇之处在于他总是躲着不见你，却总说刚下完的雨是拜他所赐』；另一方面，计算机系统越来越复杂，有时候折腾他们简直就是玄学——且不说各种深度学习算法的参数炼丹，就是不同笔记本装个Linux都可能遇到各种各种莫名其妙的问题。</li>
+        <p>MPI-3 单边通信（One-sided Communication）特性学习笔记。</p>
+<a id="more"></a>
+<p>基本观点：将数据交换和同步进行解耦，交换数据时不需要远端进程进行同步。</p>
+<p>优点：</p>
+<ul>
+<li>一些不规则的通信模式（communication pattern）可以更容易实现，不需要额外的步骤来确定要进行多少次 Send/Recv；</li>
+<li>如果系统硬件支持远端内存访问（Remote Memory Access, RMA），可以比 Send/Recv 获得更好的性能。</li>
+</ul>
+<p>术语： </p>
+<ul>
+<li>源进程（Origin process）：拥有源数据、发起通信的进程；</li>
+<li>目标进程（Target process）：拥有目标数据的进程，不需要显式调用通信函数；</li>
+<li>阶段（Epoch）：一个数据交换时间段；</li>
+<li>断言（Assert）：指示如何使用单边通信，给出『快速』优化提示。</li>
+</ul>
+<p>主要函数一览：</p>
+<ul>
+<li><code>MPI_Win_create(*base, total_bytes, unit_bytes, info, comm, *win_handle)</code><ul>
+<li>创建一个 Window 并暴露一段连续的内存给 MPI</li>
+</ul>
+</li>
+<li><code>MPI_Win_allocate(total_bytes, unit_bytes, info, comm, *baseptr, *win_handle)</code><ul>
+<li>与 <code>MPI_Win_create</code> 类似，但是会申请内存分配；</li>
+<li>可能会消耗更少的资源，应该尽可能使用！</li>
+</ul>
+</li>
+<li><code>MPI_Win_create_dynamic(info, comm, *win_handle)</code><ul>
+<li>创建一个 Window, 但是不绑定暴露的内存；</li>
+<li>只有在使用 <code>MPI_Win_attach</code> 绑定了暴露给 MPI 的内存以后，其他进程才能使用。</li>
+</ul>
+</li>
+<li><code>MPI_Get/Put(*local_buf_addr, local_buf_entry_count, local_entry_datatype, target_rank, target_entry_offset, target_entry_datatype, win_handle)</code><ul>
+<li>非阻塞；</li>
+<li>冲突访问时系统的行为是未定义的；</li>
+<li><code>Rput/Rget</code>：有 Request 句柄的版本，也是非阻塞的，但是开销更大。</li>
+</ul>
+</li>
+<li><code>MPI_Accumulate(*local_buf_addr, local_buf_entry_count, local_entry_datatype, target_rank, target_entry_offset, target_entry_datatype, op, win_handle)</code><ul>
+<li>逐个元素的 <strong>原子操作</strong>，类似于 <code>MPI_Put</code>；</li>
+<li>仅支持预定义的操作；</li>
+<li>允许冲突访问，此时会根据 ordering rules 来进行操作。</li>
+</ul>
+</li>
+<li><code>MPI_Get_accumulate(&lt;local_src_params&gt;, &lt;local_get_result_params&gt;, &lt;target_params&gt;, op, win_handle)</code><ul>
+<li>从 <code>*target*</code> 处取数据存到 <code>*result*</code>，然后将 <code>*local_src*</code> 的数据累加操作到 <code>*target*</code> 处。</li>
+</ul>
+</li>
+<li><code>MPI_Fetch_and_op(*local_entry_addr, *result_entry_addr, datatype, target_rank, *target_entry_offset, op, win_handle)</code><ul>
+<li>单个元素版本的 <code>MPI_Get_accumulate</code>,<br>（<code>MPI_Compare_and_swap</code> 参数太复杂了我没看明白……）</li>
+</ul>
+</li>
+</ul>
+<p>RMA 同步模型：解决如下问题：一个进程什么时候可以读写远端进程的数据？X 进程写的数据 Y 进程什么时候可以用？</p>
+<ol>
+<li>Fence：主动同步<ul>
+<li>在同一个 “win” 组中的所有进程都需要调用 <code>MPI_Win_fence</code> 来启动一个数据交换阶段；</li>
+<li>数据交换阶段中所有进程都可以发出读写操作请求；</li>
+<li>在同一个 “win” 组中的所有进程都需要调用 <code>MPI_Win_fence</code> 来结束一个数据交换阶段；</li>
+<li>第二次 fence synchronization 完成时所有的操作请求都已完成；</li>
+<li>比较适用于 BSP 模式的程序，比如需要边界交换程序或者稠密线性代数程序（用 <code>MPI_Get</code>, <code>MPI_Put</code> 来代替 <code>MPI_Allgather</code>, <code>MPI_Send/Recv</code>）。</li>
+</ul>
+</li>
+<li>PSCW 同步：主动同步<ul>
+<li>和 fence 类似，但源进程和目标进程指出他们可以和哪一个组的进程进行通信；</li>
+<li>目标进程：启动一个暴露阶段（Exposure Epoch）:  <code>MPI_Win_post</code> 打开，<code>MPI_Win_wait</code> 关闭；</li>
+<li>源进程：启动一个访问阶段（Access epoch）：<code>MPI_Win_start</code> 打开，<code>MPI_Win_complete</code> 关闭。<br><img src="http://wx2.sinaimg.cn/large/db02a3d8gy1fgyyk0phh7j20aa07njrk.jpg" alt="PSCW"></li>
+</ul>
+</li>
+<li>Lock/Unlock：被动同步<ul>
+<li>单边非同步通信；</li>
+<li>目标进程不主动参与通信过程；</li>
+<li><code>MPI_Win_lock</code>/<code>MPI_Win_unlock</code>开始/结束被动通信阶段；</li>
+<li>独占/共享 模式决定了其他进程能否取得目标进程的锁（使用目标进程的数据），使用独占模式时只有源进程调用 unlock 以后才会释放目标进程的锁；</li>
+<li><code>MPI_Win_flush</code>：完成所有还没完成的操作；</li>
+<li>类似的函数： <code>MPI_Win_lock_all</code> / <code>MPI_Win_unlock_all</code>, lock/unlock 源进程以外所有其他进程<br><img src="http://wx3.sinaimg.cn/large/db02a3d8gy1fgyyk1xxqfj20jv07rdgg.jpg" alt="Lock"></li>
+</ul>
+</li>
+</ol>
+<p>如何选择使用的模式：</p>
+<ul>
+<li>主动模式： Bulk synchronization, 如交换 ghost cell；</li>
+<li>被动模式：非同步数据交换，或者数据很大时。</li>
+</ul>
+<p>内存模型：</p>
+<ul>
+<li>统一模式：公共和私有的 window 是同一片内存；</li>
+<li>分隔模式：公共和私有的 window 不是同一片内存，但 MPI 提供软件保证的一致性。<br><img src="http://wx4.sinaimg.cn/large/db02a3d8gy1fgyyk5276zj20j00843z6.jpg" alt="MemMode"></li>
+<li>这两种模式的语义都非常复杂……</li>
 </ul>
 
       
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://enigmahuang.github.io/2016/11/14/HelloWorld/" data-id="cj4eambhk0000yw2b50lijng3" class="article-share-link">Share</a>
+        <a data-url="http://enigmahuang.github.io/2017/06/26/MPI3-OSC/" data-id="cj4eambhu0003yw2b3azp44da" class="article-share-link">Share</a>
       
 
       
 
       
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/helloworld/">helloworld</a></li></ul>
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/mpi/">mpi</a></li></ul>
 
     </footer>
   </div>
@@ -114,15 +202,11 @@
     
 <nav id="article-nav">
   
-    <a href="/2017/02/04/Build-Your-MPI-Cluster/" id="article-nav-newer" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Newer</strong>
-      <div class="article-nav-title">
-        
-          如何搭建自己的 MPI 集群
-        
-      </div>
-    </a>
   
+    <a href="/2017/06/26/MPI3-NCC/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">MPI-3 学习笔记（一）：Nonblocking Collective Communication</div>
+    </a>
   
 </nav>
 
