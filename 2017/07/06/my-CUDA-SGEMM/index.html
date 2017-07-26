@@ -18,7 +18,7 @@
 <meta property="og:image" content="http://wx2.sinaimg.cn/large/db02a3d8gy1fhaf3zjahpj20h10k0q6s.jpg">
 <meta property="og:image" content="http://wx3.sinaimg.cn/large/db02a3d8gy1fhaggrx98xj20hx0bqt9b.jpg">
 <meta property="og:image" content="http://wx4.sinaimg.cn/large/db02a3d8gy1fhaggsk4jfj20fq0bk758.jpg">
-<meta property="og:updated_time" content="2017-07-06T14:14:26.673Z">
+<meta property="og:updated_time" content="2017-07-26T15:47:07.629Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="CUDA Case Study - SGEMM on Kepler">
 <meta name="twitter:description" content="最近自己重新学 CUDA （以前上过课，长时间不用又忘记了），找些经典的 case study 自己照猫画虎弄一次加深一点认识。HPC 领域里一个绕不开的例子就是 xGEMM，即稠密矩阵-矩阵乘法。网上关于 CUDA 如何实现高性能 xGEMM 的介绍不多，而且很多都是 Fermi 时代的资料，面对 Kepler 有详细介绍的只有 Ref No.2 那个网页。我以 Ref No.1, No.2 两">
@@ -218,6 +218,15 @@
 </tbody>
 </table>
 <p>表格里的空格表示测试给出的结果是 0，没有数据。可以看出，kernel 的性能如何，并不由单一的指标确定。令我惊讶的是，CUBLAS 的 kernel 居然只有那么低的 Occupancy 和 l1_shared_utilization。顺带一提，测试显示 CUBLAS 在 K40c 上的 kernel 名字叫 <code>sgemm_sm35_ldg_nn_128x16x64x16x16</code>，后面的五个数字应该就是和上面的 Fig2 类似的分块尺寸参数。我找了一个 Fermi 架构的低端游戏卡 GT 635M，测试显示 CUBLAS 的 kernel 叫 <code>magma_lds128_sgemm_kernel</code> ——好嘛，直接就用 magma 的东西了。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>以下方法有助于提高 CUDA 程序的性能：</p>
+<ul>
+<li>避免分支，或者将分支转变为只有在某个 warp 中有不同值的情况；</li>
+<li>每个 warp 访问的内存地址连续，避免 shared memory bank conflict 和 global memory 不合并的访问；</li>
+<li>为每个 thread 分配更多的工作量，提高 SP 利用率；</li>
+<li>对循环进行多路展开以减少循环判断次数和增大指令吞吐量；</li>
+<li>利用 shared memory 来保存一个 thread block 共用的数据，利用寄存器来保存每个 thread 各自的计算结果和数据；</li>
+<li>适当调整指令顺序，以计算指令掩盖长延时的取数据指令。</li>
+</ul>
 <h2 id="References"><a href="#References" class="headerlink" title="References"></a>References</h2><ol>
 <li><a href="http://www.es.ele.tue.nl/~mwijtvliet/5KK73/?page=mmcuda" target="_blank" rel="external">5KK73 CUDA GEMM</a></li>
 <li><a href="https://cnugteren.github.io/tutorial/pages/page1.html" target="_blank" rel="external">OpenCL SGEMM Tutorial</a></li>
@@ -232,7 +241,7 @@
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://enigmahuang.github.io/2017/07/06/my-CUDA-SGEMM/" data-id="cj5kt7skt0007142ba9xwqbxb" class="article-share-link">分享到</a>
+        <a data-url="http://enigmahuang.github.io/2017/07/06/my-CUDA-SGEMM/" data-id="cj5l6y5hl0008ss2br8qej2af" class="article-share-link">分享到</a>
       
 
       
@@ -274,7 +283,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">標簽</h3>
+    <h3 class="widget-title">标签</h3>
     <div class="widget">
       <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/cache/">cache</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/cuda/">cuda</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/gemm/">gemm</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/helloworld/">helloworld</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/icc/">icc</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux/">linux</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/mpi/">mpi</a><span class="tag-list-count">5</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nfs/">nfs</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/simd/">simd</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/sorting/">sorting</a><span class="tag-list-count">1</span></li></ul>
     </div>
@@ -283,7 +292,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">標簽雲</h3>
+    <h3 class="widget-title">标签云</h3>
     <div class="widget tagcloud">
       <a href="/tags/cache/" style="font-size: 15px;">cache</a> <a href="/tags/cuda/" style="font-size: 15px;">cuda</a> <a href="/tags/gemm/" style="font-size: 15px;">gemm</a> <a href="/tags/helloworld/" style="font-size: 10px;">helloworld</a> <a href="/tags/icc/" style="font-size: 10px;">icc</a> <a href="/tags/linux/" style="font-size: 10px;">linux</a> <a href="/tags/mpi/" style="font-size: 20px;">mpi</a> <a href="/tags/nfs/" style="font-size: 10px;">nfs</a> <a href="/tags/simd/" style="font-size: 10px;">simd</a> <a href="/tags/sorting/" style="font-size: 10px;">sorting</a>
     </div>
@@ -292,7 +301,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">歸檔</h3>
+    <h3 class="widget-title">归档</h3>
     <div class="widget">
       <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
@@ -332,7 +341,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">友情鏈接</h3>
+    <h3 class="widget-title">友情链接</h3>
     <div class="widget">
       <ul>
         
@@ -369,7 +378,7 @@
 </nav>
   <!-- totop start -->
 <div id="totop">
-<a title="返回頂部"><img src="/img/scrollup.png"/></a>
+<a title="返回顶部"><img src="/img/scrollup.png"/></a>
 </div>
 
 <!-- totop end -->
