@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
   
   <title>使用 AVX 系列指令集进行向量化 | Rainmaker&#39;s Notebook</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -24,11 +24,11 @@
     <link rel="icon" href="/favicon.png">
   
   <link rel="stylesheet" href="/css/style.css">
-  <!--[if lt IE 9]><script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7/html5shiv.min.js"></script><![endif]-->
+  <!--[if lt IE 9]><script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7/html5shiv.min.js"></script><![endif]--><!-- hexo-inject:begin --><!-- hexo-inject:end -->
   
 </head>
 <body>
-<div id="container">
+<!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="container">
   <div id="wrap">
     <header id="header">
   <div id="banner"></div>
@@ -96,7 +96,8 @@
       
         <p>最近上课讲到了向量化的内容，我顺便整理了一下自己手头以前相关的资料。下面内容的主要关注点是在 x86 平台上让编译器进行自动向量化，但是第二部分所提到的一些原则在各个平台上都适用。</p>
 <a id="more"></a>
-<h2 id="指令集基本情况"><a href="#指令集基本情况" class="headerlink" title="指令集基本情况"></a>指令集基本情况</h2><table>
+<h2 id="指令集基本情况"><a href="#指令集基本情况" class="headerlink" title="指令集基本情况"></a>指令集基本情况</h2><div class="table-container">
+<table>
 <thead>
 <tr>
 <th>指令集</th>
@@ -122,7 +123,9 @@
 </tr>
 </tbody>
 </table>
+</div>
 <p>Xeon Phi 与下一代 Xeon 共有指令集：AVX512-{F, CD}<br>Xeon Phi 专有指令集：AVX512-{ER, PF}<br>下一代 Xeon 专有指令集：AVX512-{BW, DQ, VL, IFMA52, VBMI}</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -153,6 +156,7 @@
 </tr>
 </tbody>
 </table>
+</div>
 <h2 id="编译器与编译参数"><a href="#编译器与编译参数" class="headerlink" title="编译器与编译参数"></a>编译器与编译参数</h2><p>ICC 15 及以上、GCC 4.9.2 及以上支持 AVX-512。使用 <code>-O2</code> 或更高优化级别将自动进行向量化优化。</p>
 <p>GCC 与 ICC 都接受 <code>-S</code> 参数，输出中间汇编文件，以检查是否使用了向量化指令。以 <code>v</code> 开头的指令，如 <code>vaddpd</code> <code>vmovupd</code> 则是向量化指令。<code>xmm</code> <code>ymm</code> <code>zmm</code> 分别表示 128 bit、256 bit 和 512 bit 寄存器。</p>
 <p>在 ICC 中，使用 <code>-qopt-report=5</code> （5 可以替换为 1~4）来输出优化信息，可以看到做了向量化的地方。在 GCC 中，使用 <code>-fopt-info-vec-all</code> 来输出所有向量化信息（更多选项参见 Ref-5）。</p>
@@ -167,6 +171,7 @@
 <li>GCC : <code>-mavx</code>, <code>-mavx2</code>, <code>-march=native</code>（针对本机架构）</li>
 </ul>
 <p>指示编译器使用 AVX-512 指令集：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -193,6 +198,7 @@
 </tr>
 </tbody>
 </table>
+</div>
 <h2 id="编程使用"><a href="#编程使用" class="headerlink" title="编程使用"></a>编程使用</h2><p>可以手动使用 Intrinsic （内联）函数进行向量化操作，函数文档参见 Ref-8。</p>
 <p>符合一定条件的循环，编译器可以自动向量化：</p>
 <ul>
@@ -264,7 +270,7 @@
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://enigmahuang.github.io/2017/09/29/AVX-SIMD/" data-id="cjbpngiws00009o2bf8xawz76" class="article-share-link">分享到</a>
+        <a data-url="http://enigmahuang.github.io/2017/09/29/AVX-SIMD/" data-id="cjbv4v8rr0003b02blc5hmhdg" class="article-share-link">Share</a>
       
 
       
@@ -279,7 +285,7 @@
 <nav id="article-nav">
   
     <a href="/2017/12/01/PoissonEqu_FDMCD_Multigrid/" id="article-nav-newer" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">下一篇</strong>
+      <strong class="article-nav-caption">Newer</strong>
       <div class="article-nav-title">
         
           泊松方程的中心差分格式与多重网格法
@@ -289,7 +295,7 @@
   
   
     <a href="/2017/08/26/Install-Arch-on-USBKey/" id="article-nav-older" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">上一篇</strong>
+      <strong class="article-nav-caption">Older</strong>
       <div class="article-nav-title">Install Arch Linux on a USB Key</div>
     </a>
   
@@ -306,36 +312,40 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">標簽</h3>
+    <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/CUDA/">CUDA</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Cache/">Cache</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/GEMM/">GEMM</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ICC/">ICC</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/LinearSystemSolver/">LinearSystemSolver</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/">Linux</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MPI/">MPI</a><span class="tag-list-count">6</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Multigrid/">Multigrid</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/NFS/">NFS</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PDE/">PDE</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SIMD/">SIMD</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Sorting/">Sorting</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/helloworld/">helloworld</a><span class="tag-list-count">1</span></li></ul>
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/CUDA/">CUDA</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Cache/">Cache</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/GEMM/">GEMM</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ICC/">ICC</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/LinearSystemSolver/">LinearSystemSolver</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/">Linux</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MPI/">MPI</a><span class="tag-list-count">6</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Multigrid/">Multigrid</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/NFS/">NFS</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PDE/">PDE</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SIMD/">SIMD</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Sorting/">Sorting</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/helloworld/">helloworld</a><span class="tag-list-count">1</span></li></ul>
     </div>
   </div>
 
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">標簽雲</h3>
+    <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/CUDA/" style="font-size: 15px;">CUDA</a> <a href="/tags/Cache/" style="font-size: 15px;">Cache</a> <a href="/tags/GEMM/" style="font-size: 15px;">GEMM</a> <a href="/tags/ICC/" style="font-size: 15px;">ICC</a> <a href="/tags/LinearSystemSolver/" style="font-size: 15px;">LinearSystemSolver</a> <a href="/tags/Linux/" style="font-size: 15px;">Linux</a> <a href="/tags/MPI/" style="font-size: 20px;">MPI</a> <a href="/tags/Multigrid/" style="font-size: 15px;">Multigrid</a> <a href="/tags/NFS/" style="font-size: 10px;">NFS</a> <a href="/tags/PDE/" style="font-size: 15px;">PDE</a> <a href="/tags/SIMD/" style="font-size: 15px;">SIMD</a> <a href="/tags/Sorting/" style="font-size: 10px;">Sorting</a> <a href="/tags/helloworld/" style="font-size: 10px;">helloworld</a>
+      <a href="/tags/CUDA/" style="font-size: 13.33px;">CUDA</a> <a href="/tags/Cache/" style="font-size: 13.33px;">Cache</a> <a href="/tags/GEMM/" style="font-size: 13.33px;">GEMM</a> <a href="/tags/ICC/" style="font-size: 13.33px;">ICC</a> <a href="/tags/LinearSystemSolver/" style="font-size: 16.67px;">LinearSystemSolver</a> <a href="/tags/Linux/" style="font-size: 13.33px;">Linux</a> <a href="/tags/MPI/" style="font-size: 20px;">MPI</a> <a href="/tags/Multigrid/" style="font-size: 16.67px;">Multigrid</a> <a href="/tags/NFS/" style="font-size: 10px;">NFS</a> <a href="/tags/PDE/" style="font-size: 13.33px;">PDE</a> <a href="/tags/SIMD/" style="font-size: 13.33px;">SIMD</a> <a href="/tags/Sorting/" style="font-size: 10px;">Sorting</a> <a href="/tags/helloworld/" style="font-size: 10px;">helloworld</a>
     </div>
   </div>
 
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">歸檔</h3>
+    <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/12/">December 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/09/">September 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/08/">August 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/12/">December 2017</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/09/">September 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/08/">August 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">近期文章</h3>
+    <h3 class="widget-title">Recent Posts</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2017/12/31/AMG_Introduce/">代数多重网格（Algebraic Multigrid）简介</a>
+          </li>
         
           <li>
             <a href="/2017/12/27/HPCG_3_Notes/">HPCG 3.0 reference implementation 阅读笔记</a>
@@ -353,10 +363,6 @@
             <a href="/2017/08/26/Install-Arch-on-USBKey/">Install Arch Linux on a USB Key</a>
           </li>
         
-          <li>
-            <a href="/2017/07/26/my-DGEMM-BLISLab/">CPU Case Study - Optimizing DGEMM</a>
-          </li>
-        
       </ul>
     </div>
   </div>
@@ -364,7 +370,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">友情鏈接</h3>
+    <h3 class="widget-title">Links</h3>
     <div class="widget">
       <ul>
         
@@ -401,7 +407,7 @@
 </nav>
   <!-- totop start -->
 <div id="totop">
-<a title="返回頂部"><img src="/img/scrollup.png"/></a>
+<a title="totop"><img src="/img/scrollup.png"/></a>
 </div>
 
 <!-- totop end -->
@@ -456,6 +462,6 @@ MathJax.Hub.Queue(function() {
 
 <script src="/js/script.js"></script>
 
-</div>
+</div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
 </body>
 </html>
