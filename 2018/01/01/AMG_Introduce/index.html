@@ -10,12 +10,13 @@
 <meta name="keywords" content="Multigrid,LinearSystemSolver">
 <meta property="og:type" content="article">
 <meta property="og:title" content="代数多重网格（Algebraic Multigrid）简介">
-<meta property="og:url" content="http://enigmahuang.github.io/2017/12/31/AMG_Introduce/index.html">
+<meta property="og:url" content="http://enigmahuang.github.io/2018/01/01/AMG_Introduce/index.html">
 <meta property="og:site_name" content="Rainmaker&#39;s Notebook">
 <meta property="og:description" content="代数多重网格（AMG）是利用几何多重网格（Geometric Multigrid, GMG）的一些重要原则和理念发展起来的不依赖于实际几何网格的多重网格方法。它继承了几何多重网格的主要优点，并且可以被用于更多类型的线性方程组。本文将介绍 Classic AMG 的基本算法并忽略数学推导过程。">
 <meta property="og:image" content="http://wx4.sinaimg.cn/large/db02a3d8ly1fn0doerssgj20w20fz0wr.jpg">
 <meta property="og:image" content="http://wx1.sinaimg.cn/large/db02a3d8gy1fn0guyihbgj20ko0k240r.jpg">
-<meta property="og:updated_time" content="2017-12-31T18:55:49.453Z">
+<meta property="og:image" content="https://raw.githubusercontent.com/EnigmaHuang/Classic_AMG_Demo/master/Compare.png">
+<meta property="og:updated_time" content="2018-01-01T21:37:32.143Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="代数多重网格（Algebraic Multigrid）简介">
 <meta name="twitter:description" content="代数多重网格（AMG）是利用几何多重网格（Geometric Multigrid, GMG）的一些重要原则和理念发展起来的不依赖于实际几何网格的多重网格方法。它继承了几何多重网格的主要优点，并且可以被用于更多类型的线性方程组。本文将介绍 Classic AMG 的基本算法并忽略数学推导过程。">
@@ -77,8 +78,8 @@
     <div class="outer">
       <section id="main"><article id="post-AMG_Introduce" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
-    <a href="/2017/12/31/AMG_Introduce/" class="article-date">
-  <time datetime="2017-12-31T15:43:21.000Z" itemprop="datePublished">2017-12-31</time>
+    <a href="/2018/01/01/AMG_Introduce/" class="article-date">
+  <time datetime="2018-01-01T21:37:21.000Z" itemprop="datePublished">2018-01-01</time>
 </a>
     
   </div>
@@ -133,7 +134,7 @@
 <p>为了方便，我们讨论如何构造插值算子 $P$. 对于 $u_i$, 如果它本身是粗网格格点，那么不需要进行插值；否则它使用 $C_i$ 中的粗网格格点值进行插值修正（即 $(P e^C)_i$ 依赖于 $(e^C)_j, j \in C_i$）。插值修正有四步。</p>
 <p>第一步，把  $F_i^W$  的边权值『重新分配』给  $a_{ii}$: $a_{ii}^{new} := a_{ii} + \sum_{k \in F_i^W} a_{ik}$ . 下面的 Figure 5 是一个示例，左右两列的  $F_i^W$  格点与中间的  $u_i$  的边权被累加到了 $u_i$ 上。</p>
 <p>第二步，对于 $F^S_i$ 中的每一个点 $u_k$, 统计它对相邻的 $u_l, l \in C_{i}$  点的总『贡献』：$\delta_{k} := \sum_{l \in C_i} a_{kl}$.</p>
-<p>第三步，对于 $C_i$ 中的每一个点 $u_j$, 将与之相邻的 $F_i^S$ 的边权『重新分配』给 $u_j$: $a_{ij}^{new} := a_{ij} + \sum_{k \in F_i^S} a_{kj} \frac{a_{ik}}{\delta_k}$. </p>
+<p>第三步，对于 $C_i$ 中的每一个点 $u_j$, 将与之相邻的 $F_i^S$ 的边权『重新分配』给 $u_j$: $a_{ij}^{new} := a_{ij} + \sum_{k \in F_i^S} a_{kj} \frac{a_{ik}}{\delta_k}$. 或者说，将 $F_i^S$ 中每一个点的边权『重新分配』给与之相邻的 $C_i$ 中的点。</p>
 <p>这里值得注意的是，如果 $F_i^S$ 中的某个点 $u_k$ 与 $u_j$ 不相邻，则右端的 $a_{kj} = 0$. </p>
 <p>第四步，插值修正：$s_{i} := \sum_{j \in C_i} w_{ij} s_{j}$, $\displaystyle w_{ij} := - \frac{a_{ij}^{new}}{a_{ii}^{new}}$. </p>
 <p>藉此，我们便成功定义了插值算子 $P​$. 下面是来自 Ref. 1 的一个示例：</p>
@@ -144,6 +145,8 @@
 <li>第一行最后两项的两个 7 分别是 $\delta_{NW} := a_{N-NW} + a_{NW-W}$ 和 $\delta_{NE} := a_{E-NE} + a_{NE-N}$;</li>
 <li>第二行 $s_S, s_N, s_W, s_E$ 前面的系数即为经过第三步边权重新分配以后新的边权。</li>
 </ul>
+<h3 id="样例代码"><a href="#样例代码" class="headerlink" title="样例代码"></a>样例代码</h3><p>为了确保我的理解是正确的，我自己动手写了一个代码，<a href="https://github.com/EnigmaHuang/Classic_AMG_Demo" target="_blank" rel="external">在这里</a>. 我用它和之前写的 Geometric Multigrid （<a href="https://github.com/EnigmaHuang/Poisson_FDM_Multigrid" target="_blank" rel="external">代码</a>, <a href="https://enigmahuang.github.io/2017/12/01/PoissonEqu_FDMCD_Multigrid/">文章</a>） 进行了对比，测试表明这两者的收敛行为非常接近，也证明我的代码和理解没有错。</p>
+<p><img src="https://raw.githubusercontent.com/EnigmaHuang/Classic_AMG_Demo/master/Compare.png" alt="Compare"></p>
 <h2 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h2><ol>
 <li>Yousef Saad, <em>Iterative Methods for Sparse Linear System (Second Edition)</em>, Philadelphia: SIAM, 2003 <a href="http://www-users.cs.umn.edu/~saad/IterMethBook\_2ndEd.pdf" target="_blank" rel="external">Online Access</a></li>
 <li>R. D. Falgout, <em>An Introduction to Algebraic Multigrid</em>, in Computing in Science and Engineering Journal, Vol 8 Issue 6, 2006  <a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.594.9512&amp;rep=rep1&amp;type=pdf" target="_blank" rel="external">Online Access</a></li>
@@ -153,7 +156,7 @@
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://enigmahuang.github.io/2017/12/31/AMG_Introduce/" data-id="cjbv4v8rf0000b02bc31b7g52" class="article-share-link">Share</a>
+        <a data-url="http://enigmahuang.github.io/2018/01/01/AMG_Introduce/" data-id="cjbwq8uto00057o2bx8ow9jrl" class="article-share-link">分享到</a>
       
 
       
@@ -169,7 +172,7 @@
   
   
     <a href="/2017/12/27/HPCG_3_Notes/" id="article-nav-older" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Older</strong>
+      <strong class="article-nav-caption">上一篇</strong>
       <div class="article-nav-title">HPCG 3.0 reference implementation 阅读笔记</div>
     </a>
   
@@ -186,7 +189,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Tags</h3>
+    <h3 class="widget-title">标签</h3>
     <div class="widget">
       <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/CUDA/">CUDA</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Cache/">Cache</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/GEMM/">GEMM</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ICC/">ICC</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/LinearSystemSolver/">LinearSystemSolver</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/">Linux</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MPI/">MPI</a><span class="tag-list-count">6</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Multigrid/">Multigrid</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/NFS/">NFS</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PDE/">PDE</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SIMD/">SIMD</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Sorting/">Sorting</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/helloworld/">helloworld</a><span class="tag-list-count">1</span></li></ul>
     </div>
@@ -195,7 +198,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Tag Cloud</h3>
+    <h3 class="widget-title">标签云</h3>
     <div class="widget tagcloud">
       <a href="/tags/CUDA/" style="font-size: 13.33px;">CUDA</a> <a href="/tags/Cache/" style="font-size: 13.33px;">Cache</a> <a href="/tags/GEMM/" style="font-size: 13.33px;">GEMM</a> <a href="/tags/ICC/" style="font-size: 13.33px;">ICC</a> <a href="/tags/LinearSystemSolver/" style="font-size: 16.67px;">LinearSystemSolver</a> <a href="/tags/Linux/" style="font-size: 13.33px;">Linux</a> <a href="/tags/MPI/" style="font-size: 20px;">MPI</a> <a href="/tags/Multigrid/" style="font-size: 16.67px;">Multigrid</a> <a href="/tags/NFS/" style="font-size: 10px;">NFS</a> <a href="/tags/PDE/" style="font-size: 13.33px;">PDE</a> <a href="/tags/SIMD/" style="font-size: 13.33px;">SIMD</a> <a href="/tags/Sorting/" style="font-size: 10px;">Sorting</a> <a href="/tags/helloworld/" style="font-size: 10px;">helloworld</a>
     </div>
@@ -204,21 +207,21 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Archives</h3>
+    <h3 class="widget-title">归档</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/12/">December 2017</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/09/">September 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/08/">August 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/12/">December 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/09/">September 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/08/">August 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Recent Posts</h3>
+    <h3 class="widget-title">近期文章</h3>
     <div class="widget">
       <ul>
         
           <li>
-            <a href="/2017/12/31/AMG_Introduce/">代数多重网格（Algebraic Multigrid）简介</a>
+            <a href="/2018/01/01/AMG_Introduce/">代数多重网格（Algebraic Multigrid）简介</a>
           </li>
         
           <li>
@@ -244,7 +247,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Links</h3>
+    <h3 class="widget-title">友情链接</h3>
     <div class="widget">
       <ul>
         
@@ -264,7 +267,7 @@
   
   <div class="outer">
     <div id="footer-info" class="inner">
-      &copy; 2017 Enigma Huang<br>
+      &copy; 2018 Enigma Huang<br>
       Powered by <a href="//hexo.io/" target="_blank">Hexo</a>
       .
       Theme by <a href="https://github.com/xiangming/landscape-plus" target="_blank">Landscape-plus</a>
@@ -281,7 +284,7 @@
 </nav>
   <!-- totop start -->
 <div id="totop">
-<a title="totop"><img src="/img/scrollup.png"/></a>
+<a title="返回顶部"><img src="/img/scrollup.png"/></a>
 </div>
 
 <!-- totop end -->

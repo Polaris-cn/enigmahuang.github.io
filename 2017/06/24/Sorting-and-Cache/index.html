@@ -107,7 +107,6 @@
 <p>问题出在分治递归树的高度上。如果我们把二路归并改成 $K$ 路归并，那么每一层计算的时候，仍然需要读入全部 $N$ 个元素，但是递归树的高度从 $ log_2(N) $ 减小到了 $ log_K(N) $ 。因此在理论上，我们只要保证进行  $K$ 路归并时所需的数据都在 cache 中，即可最大化 cache 利用效率。</p>
 <h2 id="实验结果"><a href="#实验结果" class="headerlink" title="实验结果"></a>实验结果</h2><p>我写了一个手动调节 $K$ 值的 $K$ 路归并排序，在递归划分到小于指定元素的时候直接使用 stdlib 的快排（对，一点都不 Cache-Oblivious，需要手动计算参数）。测试平台是 Xeon E5-2620v2 @ 2.1GHz, 1600MHz DDR3, CentOS 7.2 x86, GCC 4.8.5。Xeon E5-2620v2 每个核心有 32KB L1 data cache，cache line size 为 64B，因此我取了 $K = 128, l = 16$ 这一组参数，$l$ 为读入的 buffer 数组大小。</p>
 <p>课程提供的测试方法是关掉 GCC 的优化参数来编译，使用 perf 工具来统计 10 次运行中 L1 data cache miss 数量。排序对象为 8Byte 大小的 long long。测试结果如下：</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -150,7 +149,6 @@
 </tr>
 </tbody>
 </table>
-</div>
 <p>课程设置实际上需要我们实现一个 funnel sort，在我看来 funnel sort 只不是两层 multi-way merge sort，操作还更繁琐一些。Brodal 2008 年关于 funnel sort 的<a href="https://app.cs.amherst.edu/~ccmcgeoch/cs34/papers/a2_2-brodal.pdf" target="_blank" rel="external">论文</a>给出的实现，funnel sort 比 <code>std::sort()</code> 要慢一点，课程资料里也说 funnel sort 的参考实现比 C stdlib 的 qsort 要慢两倍多。我的实现比 <code>qsort</code> 慢了 20% 左右，看起来是正常的。L1 data cache miss 的数据我没有在其他地方找到，课程资料里说他们的参考实现在只有 16KB L1 data cache 的 AMD CPU 上的 k-way/qsort L1 miss 分别是 0.931, 0.809 和 0.723，这个跨了硬件平台，也不太好直接对比。</p>
 <p>虽然 k-way merge sort 的 L1 miss 要更少，但是耗费的时间却更多，我认为可能的原因包括：</p>
 <ul>
@@ -159,7 +157,6 @@
 <li>排序算法的性能瓶颈不在 cache 上（CPU 分治预测失败清空流水线的代价比从 L2 或者 L3 取数据更大）。</li>
 </ul>
 <p>出于好奇，我使用 <code>-O3</code> 重新编译了程序并进行了测试：</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -202,14 +199,13 @@
 </tr>
 </tbody>
 </table>
-</div>
 <p>这个结果就相当有趣了。无论是 stdlib 的 <code>qsort</code> 还是我的实现，速度都提高了 50% 甚至更多。与没有 <code>-O</code> 的时候相比，<code>qsort</code> 的 L1 miss 在 $n = 2^{23}, 2^{24}$ 时显著增大了，而速度也显著提升了。我不知道这里面具体发生了什么，但是这说明 cache miss 和性能并不总是负相关。我的实现的 L1 miss 几乎没有什么变化，大概是我的代码的访存行为和编译器优化后的代码的访存行为没有太大区别。</p>
 
       
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://enigmahuang.github.io/2017/06/24/Sorting-and-Cache/" data-id="cjbv4v8s8000gb02b534h18zh" class="article-share-link">Share</a>
+        <a data-url="http://enigmahuang.github.io/2017/06/24/Sorting-and-Cache/" data-id="cjbwq8uu2000h7o2batn92hho" class="article-share-link">分享到</a>
       
 
       
@@ -224,7 +220,7 @@
 <nav id="article-nav">
   
     <a href="/2017/06/26/MPI3-NCC/" id="article-nav-newer" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Newer</strong>
+      <strong class="article-nav-caption">下一篇</strong>
       <div class="article-nav-title">
         
           MPI-3 学习笔记（一）：Nonblocking Collective Communication
@@ -234,7 +230,7 @@
   
   
     <a href="/2017/02/22/Environment-Modules-Usage/" id="article-nav-older" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Older</strong>
+      <strong class="article-nav-caption">上一篇</strong>
       <div class="article-nav-title">使用 Environment Module 管理不同版本软件</div>
     </a>
   
@@ -251,7 +247,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Tags</h3>
+    <h3 class="widget-title">标签</h3>
     <div class="widget">
       <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/CUDA/">CUDA</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Cache/">Cache</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/GEMM/">GEMM</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ICC/">ICC</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/LinearSystemSolver/">LinearSystemSolver</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/">Linux</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MPI/">MPI</a><span class="tag-list-count">6</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Multigrid/">Multigrid</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/NFS/">NFS</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PDE/">PDE</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SIMD/">SIMD</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Sorting/">Sorting</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/helloworld/">helloworld</a><span class="tag-list-count">1</span></li></ul>
     </div>
@@ -260,7 +256,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Tag Cloud</h3>
+    <h3 class="widget-title">标签云</h3>
     <div class="widget tagcloud">
       <a href="/tags/CUDA/" style="font-size: 13.33px;">CUDA</a> <a href="/tags/Cache/" style="font-size: 13.33px;">Cache</a> <a href="/tags/GEMM/" style="font-size: 13.33px;">GEMM</a> <a href="/tags/ICC/" style="font-size: 13.33px;">ICC</a> <a href="/tags/LinearSystemSolver/" style="font-size: 16.67px;">LinearSystemSolver</a> <a href="/tags/Linux/" style="font-size: 13.33px;">Linux</a> <a href="/tags/MPI/" style="font-size: 20px;">MPI</a> <a href="/tags/Multigrid/" style="font-size: 16.67px;">Multigrid</a> <a href="/tags/NFS/" style="font-size: 10px;">NFS</a> <a href="/tags/PDE/" style="font-size: 13.33px;">PDE</a> <a href="/tags/SIMD/" style="font-size: 13.33px;">SIMD</a> <a href="/tags/Sorting/" style="font-size: 10px;">Sorting</a> <a href="/tags/helloworld/" style="font-size: 10px;">helloworld</a>
     </div>
@@ -269,21 +265,21 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Archives</h3>
+    <h3 class="widget-title">归档</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/12/">December 2017</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/09/">September 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/08/">August 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/12/">December 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/09/">September 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/08/">August 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
   </div>
 
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Recent Posts</h3>
+    <h3 class="widget-title">近期文章</h3>
     <div class="widget">
       <ul>
         
           <li>
-            <a href="/2017/12/31/AMG_Introduce/">代数多重网格（Algebraic Multigrid）简介</a>
+            <a href="/2018/01/01/AMG_Introduce/">代数多重网格（Algebraic Multigrid）简介</a>
           </li>
         
           <li>
@@ -309,7 +305,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">Links</h3>
+    <h3 class="widget-title">友情链接</h3>
     <div class="widget">
       <ul>
         
@@ -329,7 +325,7 @@
   
   <div class="outer">
     <div id="footer-info" class="inner">
-      &copy; 2017 Enigma Huang<br>
+      &copy; 2018 Enigma Huang<br>
       Powered by <a href="//hexo.io/" target="_blank">Hexo</a>
       .
       Theme by <a href="https://github.com/xiangming/landscape-plus" target="_blank">Landscape-plus</a>
@@ -346,7 +342,7 @@
 </nav>
   <!-- totop start -->
 <div id="totop">
-<a title="totop"><img src="/img/scrollup.png"/></a>
+<a title="返回顶部"><img src="/img/scrollup.png"/></a>
 </div>
 
 <!-- totop end -->
