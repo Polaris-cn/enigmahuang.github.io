@@ -15,6 +15,8 @@
 <meta property="og:description" content="代数多重网格（AMG）是利用几何多重网格（Geometric Multigrid, GMG）的一些重要原则和理念发展起来的不依赖于实际几何网格的多重网格方法。它继承了几何多重网格的主要优点，并且可以被用于更多类型的线性方程组。本文将介绍 Classic AMG 的基本算法并忽略数学推导过程。">
 <meta property="og:image" content="http://wx4.sinaimg.cn/large/db02a3d8ly1fn0doerssgj20w20fz0wr.jpg">
 <meta property="og:image" content="http://wx1.sinaimg.cn/large/db02a3d8gy1fn0guyihbgj20ko0k240r.jpg">
+<meta property="og:image" content="http://wx2.sinaimg.cn/large/db02a3d8ly1fn0doerr72j20w90cuq6q.jpg">
+<meta property="og:image" content="http://wx1.sinaimg.cn/large/db02a3d8ly1fn0dodjnvbj20vm094jsy.jpg">
 <meta property="og:image" content="https://raw.githubusercontent.com/EnigmaHuang/Classic_AMG_Demo/master/Compare.png">
 <meta property="og:updated_time" content="2018-01-01T21:37:32.143Z">
 <meta name="twitter:card" content="summary">
@@ -145,6 +147,9 @@
 <li>第一行最后两项的两个 7 分别是 $\delta_{NW} := a_{N-NW} + a_{NW-W}$ 和 $\delta_{NE} := a_{E-NE} + a_{NE-N}$;</li>
 <li>第二行 $s_S, s_N, s_W, s_E$ 前面的系数即为经过第三步边权重新分配以后新的边权。</li>
 </ul>
+<p>这里另外有两个来自 Ref. 2 的计算插值系数的样例。Figure 4 中没有第一步，Figure 5 中没有第二、三步。这三个样例我都用来测试过我的样例代码。</p>
+<p><img src="http://wx2.sinaimg.cn/large/db02a3d8ly1fn0doerr72j20w90cuq6q.jpg" alt="Figure 4"></p>
+<p><img src="http://wx1.sinaimg.cn/large/db02a3d8ly1fn0dodjnvbj20vm094jsy.jpg" alt="Figure 5"></p>
 <h3 id="样例代码"><a href="#样例代码" class="headerlink" title="样例代码"></a>样例代码</h3><p>为了确保我的理解是正确的，我自己动手写了一个代码，<a href="https://github.com/EnigmaHuang/Classic_AMG_Demo" target="_blank" rel="external">在这里</a>. 我用它和之前写的 Geometric Multigrid （<a href="https://github.com/EnigmaHuang/Poisson_FDM_Multigrid" target="_blank" rel="external">代码</a>, <a href="https://enigmahuang.github.io/2017/12/01/PoissonEqu_FDMCD_Multigrid/">文章</a>） 进行了对比，测试表明这两者的收敛行为非常接近，也证明我的代码和理解没有错。</p>
 <p><img src="https://raw.githubusercontent.com/EnigmaHuang/Classic_AMG_Demo/master/Compare.png" alt="Compare"></p>
 <h2 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h2><ol>
@@ -156,7 +161,7 @@
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://enigmahuang.github.io/2018/01/01/AMG_Introduce/" data-id="cjbwq8uto00057o2bx8ow9jrl" class="article-share-link">分享到</a>
+        <a data-url="http://enigmahuang.github.io/2018/01/01/AMG_Introduce/" data-id="cjbwqf04u0000ds2b1ap30t0n" class="article-share-link">分享到</a>
       
 
       
