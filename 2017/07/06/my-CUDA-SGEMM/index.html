@@ -4,23 +4,20 @@
 <head>
   <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
   
-  <title>CUDA Case Study - SGEMM on Kepler | Rainmaker&#39;s Notebook</title>
+  <title>CUDA Case Study - SGEMM on Pascal | Rainmaker&#39;s Notebook</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="description" content="最近自己重新学 CUDA （以前上过课，长时间不用又忘记了），找些经典的 case study 自己照猫画虎弄一次加深一点认识。HPC 领域里一个绕不开的例子就是 xGEMM，即稠密矩阵-矩阵乘法。网上关于 CUDA 如何实现高性能 xGEMM 的介绍不多，而且很多都是 Fermi 时代的资料，面对 Kepler 有详细介绍的只有 Ref No.2 那个网页。我以 Ref No.1, No.2 两">
 <meta name="keywords" content="CUDA,GEMM">
 <meta property="og:type" content="article">
-<meta property="og:title" content="CUDA Case Study - SGEMM on Kepler">
+<meta property="og:title" content="CUDA Case Study - SGEMM on Pascal">
 <meta property="og:url" content="http://enigmahuang.github.io/2017/07/06/my-CUDA-SGEMM/index.html">
 <meta property="og:site_name" content="Rainmaker&#39;s Notebook">
 <meta property="og:description" content="最近自己重新学 CUDA （以前上过课，长时间不用又忘记了），找些经典的 case study 自己照猫画虎弄一次加深一点认识。HPC 领域里一个绕不开的例子就是 xGEMM，即稠密矩阵-矩阵乘法。网上关于 CUDA 如何实现高性能 xGEMM 的介绍不多，而且很多都是 Fermi 时代的资料，面对 Kepler 有详细介绍的只有 Ref No.2 那个网页。我以 Ref No.1, No.2 两">
 <meta property="og:image" content="https://cnugteren.github.io/tutorial/images/gemm2a.png">
-<meta property="og:image" content="http://wx1.sinaimg.cn/large/db02a3d8gy1fhaf3yao23j20ec0e1wec.jpg">
 <meta property="og:image" content="http://wx2.sinaimg.cn/large/db02a3d8gy1fhaf3zjahpj20h10k0q6s.jpg">
-<meta property="og:image" content="http://wx3.sinaimg.cn/large/db02a3d8gy1fhaggrx98xj20hx0bqt9b.jpg">
-<meta property="og:image" content="http://wx4.sinaimg.cn/large/db02a3d8gy1fhaggsk4jfj20fq0bk758.jpg">
-<meta property="og:updated_time" content="2017-09-29T19:53:51.780Z">
+<meta property="og:updated_time" content="2018-01-13T22:30:02.633Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="CUDA Case Study - SGEMM on Kepler">
+<meta name="twitter:title" content="CUDA Case Study - SGEMM on Pascal">
 <meta name="twitter:description" content="最近自己重新学 CUDA （以前上过课，长时间不用又忘记了），找些经典的 case study 自己照猫画虎弄一次加深一点认识。HPC 领域里一个绕不开的例子就是 xGEMM，即稠密矩阵-矩阵乘法。网上关于 CUDA 如何实现高性能 xGEMM 的介绍不多，而且很多都是 Fermi 时代的资料，面对 Kepler 有详细介绍的只有 Ref No.2 那个网页。我以 Ref No.1, No.2 两">
 <meta name="twitter:image" content="https://cnugteren.github.io/tutorial/images/gemm2a.png">
   
@@ -92,7 +89,7 @@
         
   
     <h1 class="article-title" itemprop="name">
-      CUDA Case Study - SGEMM on Kepler
+      CUDA Case Study - SGEMM on Pascal
     </h1>
   
 
@@ -102,122 +99,100 @@
       
         <p>最近自己重新学 CUDA （以前上过课，长时间不用又忘记了），找些经典的 case study 自己照猫画虎弄一次加深一点认识。HPC 领域里一个绕不开的例子就是 xGEMM，即稠密矩阵-矩阵乘法。网上关于 CUDA 如何实现高性能 xGEMM 的介绍不多，而且很多都是 Fermi 时代的资料，面对 Kepler 有详细介绍的只有 Ref No.2 那个网页。我以 Ref No.1, No.2 两个网页的资料和代码为蓝本，一并参考了其他一些文章，自己动手实践了一下，代码在 <a href="https://github.com/EnigmaHuang/my_CUDA_SGEMM" target="_blank" rel="external">这里</a>。</p>
 <a id="more"></a>
-<h2 id="测试平台"><a href="#测试平台" class="headerlink" title="测试平台"></a>测试平台</h2><p>我蹭了以前实验室的机器用了一下 K40c: 15 SMX * 192 SP (2880 SP) @ 810MHz，12GB GDDR5 @ 3004 MHz, 288GB/s 带宽，峰值单精度性能 4.29 TFlops，打开 ECC。编译平台是 CUDA 8.0 + CentOS 7.3 + GCC 4.8.5。以 CUBLAS 作为性能和计算结果的参考。<br>使用 4K * 4K * 4K 的矩阵规模进行测试。这个规模下，CUBLAS 的 sgemm 可以达到 3354.68 GFlops (78.2% peak)。</p>
-<h2 id="Kernel-1-Naive"><a href="#Kernel-1-Naive" class="headerlink" title="Kernel 1: Naive"></a>Kernel 1: Naive</h2><p>最基本的思想：每个 Block 计算 C 的一小块（这一点一直延续到后面所有的 kernel 中），每个 thread 直接计算 C 的一个元素的值，直接从显存里读数据进来。当然，性能也是要多差有多差了：只有 161.2 GFlops。</p>
-<h2 id="Kernel-2-3：-Tiling"><a href="#Kernel-2-3：-Tiling" class="headerlink" title="Kernel 2, 3： Tiling"></a>Kernel 2, 3： Tiling</h2><p>分块乘法是所有平台进行 xGEMM 都绕不开的步骤，因为这可以有效提高计算-访存比，充分利用高速缓存。<br><img src="https://cnugteren.github.io/tutorial/images/gemm2a.png" alt="tiled_mm"><br>我使用了 32 * 32 的分块大小。然而，shared memory 里的分块矩阵存放顺序如果搞错了会引起严重的 bank conflict 问题：Kernel 2 只有 151.4 GFlops, Kernel 3 则有 432.7 GFlops。这两个 Kernel 对应 Ref No.1 的第 2，3 步。</p>
-<h2 id="Kernel-4-5：More-Work-Per-Thread-2D-Reg-Failed"><a href="#Kernel-4-5：More-Work-Per-Thread-2D-Reg-Failed" class="headerlink" title="Kernel 4, 5：More Work Per Thread, 2D Reg - Failed"></a>Kernel 4, 5：More Work Per Thread, 2D Reg - Failed</h2><p>Ref No3. No.2 都提到了需要增加每个线程的工作量，然而它们的方法各不相同：Ref No.1 让每个线程用寄存器保存 C 的一列，每次读 B 的一个元素和 A 的一列，不断更新，最后写回去 C；Ref No.2 的思路后面再说。我尝试了一种新的方法：将原来的 32 <em> 32 的子矩阵块进一步切分，变成 4 个 16 \</em> 16 的小块（kernel 4）和 16 个 8 * 8 的小块（kernel 5），每个线程的工作量（从显存读、负责的 C 的元素个数）就变成了 4 or 16 倍。<br>测试表明，Kernel 4 有些加速，kernel 5 比起 kernel 4 还慢了。我仔细看了一下代码，kernel 5 存在几个问题。首先，kernel 5 的访存不连续。Kernel 4 尚且可以保证每半个 warp 访问的显存和 shared memory 是连续的，kernel 5 的 8 * 8 小块截断了这个最小单位的连续访问，导致每半个 warp 的全局访问不合并和 shared memory bank comflict。</p>
-<p><img src="http://wx1.sinaimg.cn/large/db02a3d8gy1fhaf3yao23j20ec0e1wec.jpg" alt="8x8"></p>
-<p>这其实可以调整一下每个线程 load 的元素的位置，应该可以有所改善。另一方面，nvprof 的分析结果显示，比起 kernel 4，kernel 5 的 occupancy 和 l1_shared_utilization 分别从 0.614 和 High(7) 下降到了 0.183 和 Mid(4)。由此我推测，由于 kernel 5 每个 block 使用的 shared memory 没有减少，所以启动的 warp 数减少了，抵消掉了每个 thread 利用率的增大。</p>
-<h2 id="Kernel-6-Moer-Work-Per-Thread"><a href="#Kernel-6-Moer-Work-Per-Thread" class="headerlink" title="Kernel 6: Moer Work Per Thread"></a>Kernel 6: Moer Work Per Thread</h2><p>Kernel 6 对应 Ref No.2 里的 Kernel 3。这个 kernel 的思路相对简单一点：每一个 thread 读入 A, B 同一列四个相距为 4 的元素，计算 C 的同一行四个相距为 4 的元素，block size 是 (32, 8)。Ref No.2 里的实现是使用行优先 (Column-Major) 格式的，对应我代码里的 <code>sgemm_6_cm</code>，我还写了一个行优先的版本 <code>sgemm_6_rm</code>。行优先的版本里，每一个 thread 读入 A, B 同一列四个相距为 4 的元素，计算 C 的同一列四个相距为 4 的元素。Kernel 6 可以做到合并全局访存，并且没有 bank conflict。两个版本的速度接近，分别是 842 (CM) 和 817 (RM) GFlops。</p>
-<h2 id="Kernel-7-More-2-Work-Per-Thread-amp-2D-Register"><a href="#Kernel-7-More-2-Work-Per-Thread-amp-2D-Register" class="headerlink" title="Kernel 7: More^2 Work Per Thread &amp; 2D Register"></a>Kernel 7: More^2 Work Per Thread &amp; 2D Register</h2><p>更进一步！这次每个线程不止管 C 的一列了，而是管 C 的一个子块：每一列管 C 的 8 * 8 个元素，和 kernel 5 中的思路一样，两两间隔开 8 个元素。这个思路其实就是 Ref No.3 论文里的 Fig.2，只是论文里的是一个线程管 16 个。每个线程每次从 shared memory 的 A, B 分块中取出一列 8 个元素和一行 8 个元素，对自己寄存器中的 C 子块进行秩1修正（一个列向量乘一个行向量），这样可以最大限度提高读入到寄存器中的数据的使用率（秩1修正读 $2n$ 个元素计算 $2n^2$ 次，前提是计算的结果必须能存在 fast mem 里）。</p>
+<p>2018-01-13 Update notes: 上个学期我的 HPC 课期末作业选了写 GPU SGEMM, 所以我重新写了一次这个代码，以及之前的代码似乎在尺寸不为 128 倍数的时候有 Bug, 在我的 GTX 1070 上面也跑得不是很快。</p>
+<h2 id="测试平台"><a href="#测试平台" class="headerlink" title="测试平台"></a>测试平台</h2><p>我用我座机上的 EVGA GTX 1070 进行测试：1920 SP @ 2002 MHz, 8GB GDDR @ 4004 MHz, 理论峰值单精度性能 7.68 TFlops, 理论峰值带宽 256BG/s. 编译平台是 Ubuntu 16.04 LTS + CUDA 8.0 + GCC 5.1。以 CUBLAS 作为性能和计算结果的参考。CUBLAS 录得最好性能为 7.2 TFlops, 为理论峰值单精度性能的 93.75%。</p>
+<h2 id="Kernel-1-Naive"><a href="#Kernel-1-Naive" class="headerlink" title="Kernel 1: Naive"></a>Kernel 1: Naive</h2><p>最基本的思想：每个 Block 计算 C 的一小块（这一点一直延续到后面所有的 kernel 中），每个 thread 直接计算 C 的一个元素的值，直接从显存里读数据进来。当然，性能也是要多差有多差了：只有 186 GFlops。</p>
+<h2 id="Kernel-2-3：-Tiling"><a href="#Kernel-2-3：-Tiling" class="headerlink" title="Kernel 2, 3： Tiling"></a>Kernel 2, 3： Tiling</h2><p>分块乘法是所有平台进行 xGEMM 都绕不开的步骤，因为这可以有效提高计算-访存比，充分利用高速缓存。<br><img src="https://cnugteren.github.io/tutorial/images/gemm2a.png" alt="tiled_mm"><br>我使用了 32 * 32 的分块大小。然而，shared memory 里的分块矩阵存放顺序如果搞错了会引起严重的 bank conflict 问题：kernel 2 只有 202 GFlops, kernel 3 则有 1001 GFlops。这两个 kernel 对应 Ref No.1 的第 2，3 步。</p>
+<h2 id="Kernel-4：4x-Workload-Per-Thread"><a href="#Kernel-4：4x-Workload-Per-Thread" class="headerlink" title="Kernel 4：4x Workload Per Thread"></a>Kernel 4：4x Workload Per Thread</h2><p>Kernel 4 中，每一个 thread 负责计算 C 中的 4 个元素。为了保持 coalesced memory access, 每半个 warp 中的 threads (即 16 个 threads) 应该访问连续的元素。记 <code>shm_C</code> 为一个 32x32 的 C 的子块，分配给一个 16x16 的thread block, 并分别记 <code>threadIdx.{x, y}</code> 为<code>tid{x, y}</code>. 则每个元素需要负责计算 <code>shm_C[tidy][tidx]</code>, <code>shm_C[tidy+16][tidx]</code>, <code>shm_C[tidy][tidx+16]</code>, <code>shm_C[tidy+16][tidx+16]</code> 这四个元素。这样每个 thread 的工作量更大，指令并行度（ILP）更高，性能也会更好。Kernel 4 的性能可以达到 1801 GFlops</p>
+<h2 id="Kernel-5-8x-Work-Per-Thread-Zero-Padding"><a href="#Kernel-5-8x-Work-Per-Thread-Zero-Padding" class="headerlink" title="Kernel 5: 8x Work Per Thread, Zero Padding"></a>Kernel 5: 8x Work Per Thread, Zero Padding</h2><p>Kernel 5 对应 Ref No.2 里的 kernel 3。这个 kernel 的思路相对简单一点：每一个 thread 读入 A, B 同一列四个相距为 8 的元素，计算 C 的同一行四个相距为 8 的元素，thread block size 是 (32, 8)。Ref No.2 里的实现是使用列优先 (Column-Major) 格式的，我仍旧使用行优先格式。同时，使用 <code>#pragma unroll</code> 来指示编译器展开最内层循环，加大 ILP。</p>
+<p>Kernel 1~4 中我没有显式为 A, B, C 矩阵填充 0 以满足 32x32 的分块大小，而是在 kernel 里进行判断。这样写起来比较麻烦，性能也会受到影响。因此我在 kernel 5 里先进行了填0，使得 A, B 的尺寸都是 32 的倍数，然后再计算，最后再把 C 周围填充的 0 给去掉。</p>
+<p>Kernel 5 的性能为 2375 GFlops.</p>
+<h2 id="Kernel-6-amp-7-More-2-Work-Per-Thread-amp-2D-Register"><a href="#Kernel-6-amp-7-More-2-Work-Per-Thread-amp-2D-Register" class="headerlink" title="Kernel 6 &amp; 7: More^2 Work Per Thread &amp; 2D Register"></a>Kernel 6 &amp; 7: More^2 Work Per Thread &amp; 2D Register</h2><p>更进一步！这次每个线程不止管 C 的一列了，而是管 C 的一个子块：每一列管 C 的 8 * 4 个元素，和 kernel 4 中的思路一样，每个线程管的元素在同一行中两两间隔有 15 个元素。这个思路其实就是 Ref No.3 论文里的 Fig.2，只是论文里的是一个线程管 16 个元素而不是 32 个。每个线程每次从 shared memory 的 A, B 分块中取出一列 4 个元素和一行 8 个元素，对自己寄存器中的 C 子块进行秩1修正（一个列向量乘一个行向量），这样可以最大限度提高读入到寄存器中的数据的使用率（秩1修正读 $2n$ 个元素计算 $2n^2$ 次，前提是计算的结果必须能存在 fast mem 里）。Kernel 7 和 kernel 6 类似，不过存在 shared memory 里的 A 和 B 不再是正方形，而是长方形。因此从 global memory 读入到 shared memory 的时候会有一些变化。每次秩一修正也变成 8x8 的子块。</p>
 <p><img src="http://wx2.sinaimg.cn/large/db02a3d8gy1fhaf3zjahpj20h10k0q6s.jpg" alt="Fig.2"></p>
-<p>这个 kernel 对应 Ref No.2 的 kernel 6。在这个 kernel 里，我也转为使用列优先的存储了（因为这样抄得比较快……）。一开始我没有做 Ref. No. 5 里的对 B 进行转置，而是直接在读的时候才转置（<em>my_sgemm_cn_kernels.cuh</em>, 224行），导致严重的跳读（全局访问不合并），性能非常差（687 G）。进行转置以后，可以达到 1105 GFlops。<br>值得一提的是， Ref No.2 里的代码，我编译了 CUDA 版的进行测试，它的 kernel 6 速度只有 774 GFlops，我不知道为什么会有如此大的区别。</p>
-<h2 id="Kernel-8-Vector-Read"><a href="#Kernel-8-Vector-Read" class="headerlink" title="Kernel 8: Vector Read"></a>Kernel 8: Vector Read</h2><p>这个 kernel 对应 Ref No.2 里的 kernel 7，计算上和上一个 kernel 一致，只是使用了 float4 类型来进行读入。这样，GPU 可以使用 <code>LD.128</code> 这样的向量载入指令，每次读取更多数据，减少总的指令数，使得全局访问的速度更快（参见<a href="https://stackoverflow.com/questions/26676806/efficiency-of-cuda-vector-types-float2-float3-float4" target="_blank" rel="external">这个</a>）。然而读到寄存器里的 float4 再拆开写到 shared mem 里的时候免不了要出现一次 bank conflict。这个 kernel 的速度可以达到 1605 GFlops。</p>
-<h2 id="Kernel-9-Pad-Zero-Any-Size"><a href="#Kernel-9-Pad-Zero-Any-Size" class="headerlink" title="Kernel 9: Pad Zero, Any Size"></a>Kernel 9: Pad Zero, Any Size</h2><p>Kernel 6~8 都是比较偷懒的，要求矩阵的尺寸是分块大小的整数倍，处理起来比较方便（然而我之前写的 kernel 1~5 则是自带任意尺寸适配的）。所以，Ref No.2 的作者最后也写了一个处理，就是用 0 来将 A, B 的尺寸填充到分块大小的整数倍。我原样照抄了作者的转置和填充函数，性能自然是非常 Naive 的，好在对速度的影响并不大，只是下降到 1571 GFlops。</p>
-<h2 id="数据汇总与分析"><a href="#数据汇总与分析" class="headerlink" title="数据汇总与分析"></a>数据汇总与分析</h2><p>Kernel 9 与 CUBLAS sgemm 的对比：</p>
-<p><img src="http://wx3.sinaimg.cn/large/db02a3d8gy1fhaggrx98xj20hx0bqt9b.jpg" alt="CUBLASvsMyKernel"></p>
-<p>基本上，这些简单的 Kernel 只能摸到 CUBLAS 速度的一半左右。再往下走，手写汇编估计是少不了的了。我翻了一下 <a href="http://icl.cs.utk.edu/magma/" target="_blank" rel="external">MAGMA</a> 的源代码（应该是 <em>magmablas/gemm_template_device.cuh</em>），他们的实现好像没有上汇编，看什么时候我能耐着性子把这个实现读懂吧。OpenAI 团队有一个速度超过 CUBLAS 的<a href="https://github.com/openai/openai-gemm" target="_blank" rel="external">实现</a>，然而并不开源，只是放出了字节码。</p>
-<p>再来个横向对比，看看各个 kernel 的差别：</p>
-<p><img src="http://wx4.sinaimg.cn/large/db02a3d8gy1fhaggsk4jfj20fq0bk758.jpg" alt="Kernels"></p>
-<p>我用 <code>nvprof</code> 查了一下各个 kernel 的一些参数：</p>
+<p>Kernel 6 和 7 的性能很接近，分别是 3102 GFlops 和 3280 GFlops。</p>
+<h2 id="Kernel-8-Vector-Read"><a href="#Kernel-8-Vector-Read" class="headerlink" title="Kernel 8: Vector Read"></a>Kernel 8: Vector Read</h2><p>这个 Kernel 对应 Ref No.2 里的 kernel 7，计算上和上面的 kernel 7 一致，只是使用了 float4 类型来进行读入。这样，GPU 可以使用 <code>LD.128</code> 这样的向量载入指令，每次读取更多数据，减少总的指令数，使得全局访问的速度更快（参见<a href="https://stackoverflow.com/questions/26676806/efficiency-of-cuda-vector-types-float2-float3-float4" target="_blank" rel="external">这个</a>）。然而读到寄存器里的 float4 再拆开写到 shared mem 里的时候免不了要出现一次 bank conflict。这个 Kernel 的速度可以达到 4807 GFlops。如果忽略掉填充 0 所需的时间，单纯是计算乘法的性能可以达到 5280 GFlops。</p>
+<h2 id="数据汇总"><a href="#数据汇总" class="headerlink" title="数据汇总"></a>数据汇总</h2><p>Kernel 8 与 CUBLAS sgemm 在不同尺寸下的对比：</p>
 <table>
 <thead>
 <tr>
-<th>n=m=k=4K</th>
-<th>1</th>
-<th>2</th>
-<th>3</th>
-<th>4</th>
-<th>5</th>
-<th>6</th>
-<th>7</th>
-<th>8</th>
-<th>9</th>
-<th>CUBLAS</th>
+<th>n=m=k</th>
+<th style="text-align:right">1024</th>
+<th style="text-align:right">2048</th>
+<th style="text-align:right">3072</th>
+<th style="text-align:right">4096</th>
+<th style="text-align:right">5120</th>
+<th style="text-align:right">6144</th>
+<th style="text-align:right">7168</th>
+<th style="text-align:right">8192</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>achieved_occupancy</td>
-<td>0.994376</td>
-<td>0.997027</td>
-<td>0.994429</td>
-<td>0.614816</td>
-<td>0.183378</td>
-<td>0.367622</td>
-<td>0.124986</td>
-<td>0.239174</td>
-<td>0.238737</td>
-<td>0.1249</td>
+<td>CUBLAS</td>
+<td style="text-align:right">4276</td>
+<td style="text-align:right">5459</td>
+<td style="text-align:right">7016</td>
+<td style="text-align:right">7201</td>
+<td style="text-align:right">7118</td>
+<td style="text-align:right">7010</td>
+<td style="text-align:right">6861</td>
+<td style="text-align:right">7044</td>
 </tr>
 <tr>
-<td>gld_efficiency</td>
-<td>82.50%</td>
-<td>100.00%</td>
-<td>100.00%</td>
-<td>100.00%</td>
-<td>100.00%</td>
-<td>100.00%</td>
-<td>100.00%</td>
-<td>-</td>
-<td>-</td>
-<td>-</td>
+<td>Kernel 8</td>
+<td style="text-align:right">925</td>
+<td style="text-align:right">2546</td>
+<td style="text-align:right">3246</td>
+<td style="text-align:right">4100</td>
+<td style="text-align:right">4282</td>
+<td style="text-align:right">4509</td>
+<td style="text-align:right">4606</td>
+<td style="text-align:right">4807</td>
 </tr>
 <tr>
-<td>l1_shared_utilization</td>
-<td>Low(2)</td>
-<td>Max(10)</td>
-<td>High(9)</td>
-<td>High(7)</td>
-<td>Mid(4)</td>
-<td>High(8)</td>
-<td>Low(3)</td>
-<td>Mid(5)</td>
-<td>Mid(4)</td>
-<td>Low(2)</td>
-</tr>
-<tr>
-<td>gld_throughput</td>
-<td>365.94</td>
-<td>18.08</td>
-<td>50.52</td>
-<td>71.36</td>
-<td>64.76</td>
-<td>96.02</td>
-<td>27.94</td>
-<td>-</td>
-<td>-</td>
-<td>-</td>
-</tr>
-<tr>
-<td>sm_efficiency</td>
-<td>98.66%</td>
-<td>98.68%</td>
-<td>99.56%</td>
-<td>98.38%</td>
-<td>96.36%</td>
-<td>97.47%</td>
-<td>85.20%</td>
-<td>80.15%</td>
-<td>80.41%</td>
-<td>51.46%</td>
-</tr>
-<tr>
-<td>issue_slot_utilization</td>
-<td>50.56%</td>
-<td>30.82%</td>
-<td>38.44%</td>
-<td>39.96%</td>
-<td>34.97%</td>
-<td>46.63%</td>
-<td>38.36%</td>
-<td>47.63%</td>
-<td>47.60%</td>
-<td>45.24%</td>
+<td>Ratio</td>
+<td style="text-align:right">21.63%</td>
+<td style="text-align:right">46.64%</td>
+<td style="text-align:right">46.26%</td>
+<td style="text-align:right">56.94%</td>
+<td style="text-align:right">60.16%</td>
+<td style="text-align:right">64.32%</td>
+<td style="text-align:right">67.28%</td>
+<td style="text-align:right">68.24%</td>
 </tr>
 </tbody>
 </table>
-<p>表格里的空格表示测试给出的结果是 0，没有数据。可以看出，kernel 的性能如何，并不由单一的指标确定。令我惊讶的是，CUBLAS 的 kernel 居然只有那么低的 Occupancy 和 l1_shared_utilization。顺带一提，测试显示 CUBLAS 在 K40c 上的 kernel 名字叫 <code>sgemm_sm35_ldg_nn_128x16x64x16x16</code>，后面的五个数字应该就是和上面的 Fig2 类似的分块尺寸参数。我找了一个 Fermi 架构的低端游戏卡 GT 635M，测试显示 CUBLAS 的 kernel 叫 <code>magma_lds128_sgemm_kernel</code> ——好嘛，直接就用 magma 的东西了。</p>
+<p>再来个横向对比，看看各个 kernel 的差别：</p>
+<table>
+<thead>
+<tr>
+<th>n=m=k=8K</th>
+<th style="text-align:right">1</th>
+<th style="text-align:right">2</th>
+<th style="text-align:right">3</th>
+<th style="text-align:right">4</th>
+<th style="text-align:right">5</th>
+<th style="text-align:right">6</th>
+<th style="text-align:right">7</th>
+<th style="text-align:right">8</th>
+<th style="text-align:right">CUBLAS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GFlops</td>
+<td style="text-align:right">186</td>
+<td style="text-align:right">202</td>
+<td style="text-align:right">1001</td>
+<td style="text-align:right">1801</td>
+<td style="text-align:right">2375</td>
+<td style="text-align:right">3102</td>
+<td style="text-align:right">3280</td>
+<td style="text-align:right">4807</td>
+<td style="text-align:right">7044</td>
+</tr>
+</tbody>
+</table>
 <h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>以下方法有助于提高 CUDA 程序的性能：</p>
 <ul>
 <li>避免分支，或者将分支转变为只有在某个 warp 中有不同值的情况；</li>
@@ -232,7 +207,7 @@
 <li><a href="https://cnugteren.github.io/tutorial/pages/page1.html" target="_blank" rel="external">OpenCL SGEMM Tutorial</a></li>
 <li><a href="http://icl.cs.utk.edu/projectsfiles/magma/pubs/fermi_gemm.pdf" target="_blank" rel="external">An Improved MAGMA GEMM for Fermi GPUs</a></li>
 <li><a href="http://www.ece.neu.edu/groups/nucar/NUCARTALKS/112_Lai.pdf" target="_blank" rel="external">Performance Upper Bound Analysis and Optimization of SGEMM on Fermi and Kepler GPUs</a></li>
-<li><a href="http://moscow.sci-hub.cc/e53afab7ae3ecca7c415c50b0af2aa82/tan2011.pdf" target="_blank" rel="external">Fast Implementation of DGEMM on Fermi GPU</a> &lt;— 感谢伟大的 Sci-Hub</li>
+<li>Fast Implementation of DGEMM on Fermi GPU （sci-hub 链接已失效）</li>
 <li><a href="http://docs.nvidia.com/cuda/profiler-users-guide/index.html" target="_blank" rel="external">nvprof &amp; nvvp user guide</a></li>
 <li><a href="https://cs.famaf.unc.edu.ar/~nicolasw/Docencia/CP/2016/20-CUDA3.html#slide33" target="_blank" rel="external">nvprof metrics &amp; events meaning</a></li>
 </ol>
@@ -241,7 +216,7 @@
     </div>
     <footer class="article-footer">
       
-        <a data-url="http://enigmahuang.github.io/2017/07/06/my-CUDA-SGEMM/" data-id="cjcdij6vz000l142bwueqenga" class="article-share-link">分享到</a>
+        <a data-url="http://enigmahuang.github.io/2017/07/06/my-CUDA-SGEMM/" data-id="cjcdxe1vh000o8w2bzc0o24z8" class="article-share-link">Share</a>
       
 
       
@@ -256,7 +231,7 @@
 <nav id="article-nav">
   
     <a href="/2017/07/26/my-DGEMM-BLISLab/" id="article-nav-newer" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">下一篇</strong>
+      <strong class="article-nav-caption">Newer</strong>
       <div class="article-nav-title">
         
           CPU Case Study - Optimizing DGEMM
@@ -266,7 +241,7 @@
   
   
     <a href="/2017/06/27/MPI3-HP-NCC/" id="article-nav-older" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">上一篇</strong>
+      <strong class="article-nav-caption">Older</strong>
       <div class="article-nav-title">MPI-3 学习笔记（三）：Hybrid Programming, Neighborhood Collective Communication</div>
     </a>
   
@@ -283,7 +258,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">标签</h3>
+    <h3 class="widget-title">Tags</h3>
     <div class="widget">
       <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/CUDA/">CUDA</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Cache/">Cache</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/GEMM/">GEMM</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ICC/">ICC</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/LinearSystemSolver/">LinearSystemSolver</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/">Linux</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MPI/">MPI</a><span class="tag-list-count">6</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Multigrid/">Multigrid</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/NFS/">NFS</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/OpenCL/">OpenCL</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PDE/">PDE</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SIMD/">SIMD</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Sorting/">Sorting</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/helloworld/">helloworld</a><span class="tag-list-count">1</span></li></ul>
     </div>
@@ -292,7 +267,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">标签云</h3>
+    <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
       <a href="/tags/CUDA/" style="font-size: 16.67px;">CUDA</a> <a href="/tags/Cache/" style="font-size: 13.33px;">Cache</a> <a href="/tags/GEMM/" style="font-size: 13.33px;">GEMM</a> <a href="/tags/ICC/" style="font-size: 13.33px;">ICC</a> <a href="/tags/LinearSystemSolver/" style="font-size: 16.67px;">LinearSystemSolver</a> <a href="/tags/Linux/" style="font-size: 13.33px;">Linux</a> <a href="/tags/MPI/" style="font-size: 20px;">MPI</a> <a href="/tags/Multigrid/" style="font-size: 16.67px;">Multigrid</a> <a href="/tags/NFS/" style="font-size: 10px;">NFS</a> <a href="/tags/OpenCL/" style="font-size: 10px;">OpenCL</a> <a href="/tags/PDE/" style="font-size: 13.33px;">PDE</a> <a href="/tags/SIMD/" style="font-size: 13.33px;">SIMD</a> <a href="/tags/Sorting/" style="font-size: 10px;">Sorting</a> <a href="/tags/helloworld/" style="font-size: 10px;">helloworld</a>
     </div>
@@ -301,7 +276,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">归档</h3>
+    <h3 class="widget-title">Archives</h3>
     <div class="widget">
       <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/12/">December 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/09/">September 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/08/">August 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
     </div>
@@ -310,7 +285,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">近期文章</h3>
+    <h3 class="widget-title">Recent Posts</h3>
     <div class="widget">
       <ul>
         
@@ -341,7 +316,7 @@
   
     
   <div class="widget-wrap">
-    <h3 class="widget-title">友情链接</h3>
+    <h3 class="widget-title">Links</h3>
     <div class="widget">
       <ul>
         
@@ -378,7 +353,7 @@
 </nav>
   <!-- totop start -->
 <div id="totop">
-<a title="返回顶部"><img src="/img/scrollup.png"/></a>
+<a title="totop"><img src="/img/scrollup.png"/></a>
 </div>
 
 <!-- totop end -->
