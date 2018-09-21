@@ -1,0 +1,498 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- hexo-inject:begin --><!-- hexo-inject:end --><meta charset="utf-8">
+  
+  <title>OpenMP fork-join cost 测试 | Rainmaker&#39;s Notebook</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="前两天和基友讨论问题的时候，想起来此之前先后在几个场合遇到过什么场合开 OpenMP 多线程的加速能抵过开线程的 overhead 这个问题。">
+<meta name="keywords" content="ICC,OpenMP">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OpenMP fork-join cost 测试">
+<meta property="og:url" content="http://enigmahuang.github.io/2018/09/20/OpenMP_fork_join_cost/index.html">
+<meta property="og:site_name" content="Rainmaker&#39;s Notebook">
+<meta property="og:description" content="前两天和基友讨论问题的时候，想起来此之前先后在几个场合遇到过什么场合开 OpenMP 多线程的加速能抵过开线程的 overhead 这个问题。">
+<meta property="og:updated_time" content="2018-09-21T03:33:17.245Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="OpenMP fork-join cost 测试">
+<meta name="twitter:description" content="前两天和基友讨论问题的时候，想起来此之前先后在几个场合遇到过什么场合开 OpenMP 多线程的加速能抵过开线程的 overhead 这个问题。">
+  
+    <link rel="alternative" href="/atom.xml" title="Rainmaker&#39;s Notebook" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  <link rel="stylesheet" href="/css/style.css">
+  <!--[if lt IE 9]><script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7/html5shiv.min.js"></script><![endif]--><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+  
+</head>
+<body>
+<!-- hexo-inject:begin --><!-- hexo-inject:end --><div id="container">
+  <div id="wrap">
+    <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Rainmaker&#39;s Notebook</a>
+      </h1>
+      
+        <h2 id="subtitle-wrap">
+          <a href="/" id="subtitle">『求雨巫师的神奇之处在于他总是躲着不见你，却总说刚下完的雨是拜他所赐。』——《天真的人类学家》</a>
+        </h2>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//www.baidu.com/baidu" method="get" accept-charset="utf-8" class="search-form">
+          <input type="search" name="word" maxlength="20" class="search-form-input" placeholder="Search">
+          <input type="submit" value="" class="search-form-submit">
+          <input name=tn type=hidden value="bds">
+          <input name=cl type=hidden value="3">
+          <input name=ct type=hidden value="2097152">
+          <input type="hidden" name="si" value="enigmahuang.github.io">
+        </form>
+      </div>
+    </div>
+  </div>
+</header>
+    <div class="outer">
+      <section id="main"><article id="post-OpenMP_fork_join_cost" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2018/09/20/OpenMP_fork_join_cost/" class="article-date">
+  <time datetime="2018-09-21T02:01:14.000Z" itemprop="datePublished">2018-09-20</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      OpenMP fork-join cost 测试
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>前两天和基友讨论问题的时候，想起来此之前先后在几个场合遇到过什么场合开 OpenMP 多线程的加速能抵过开线程的 overhead 这个问题。</p>
+<a id="more"></a>
+<p>开 OpenMP 多线程的 overhead 主要在于每次进入并行区域时对线程的 fork 和 join，包括为各线程分配任务以及等待各线程完成计算。有些编译器实现 OpenMP 的时候会使用线程池（thread pool），第一次进入并行区域的时候创建线程池，直到程序结束再销毁线程池。Visual C++ 的 <a href="https://docs.microsoft.com/en-us/cpp/build/reference/openmp-enable-openmp-2-0-support?view=vs-2017" target="_blank" rel="external">官方文档</a> 说线程池启动需要 16ms：</p>
+<blockquote>
+<p>  Assuming an x64, single core, dual processor the threadpool takes about 16ms to startup. After that though there is very little cost for the threadpool.</p>
+</blockquote>
+<p>Intel C 编译器似乎也是有线程池的，但是我只找到 <a href="https://scc.ustc.edu.cn/zlsc/sugon/intel/compiler_c/main_cls/optaps/common/optaps_par_multicore_thrdpool.htm" target="_blank" rel="external">2011 年的文档</a>，还不是在 Intel 网站上的：</p>
+<blockquote>
+<p>  Intel OpenMP implementation uses thread pools. A pool of worker threads is created at the first parallel region. These threads exist for the duration of program execution. More threads may be added automatically if requested by the program. The threads are not destroyed until the last parallel region is executed.</p>
+</blockquote>
+<p>至于 GCC，<a href="https://stackoverflow.com/questions/12614835/persistance-of-openmp-thread-teams-across-functions" target="_blank" rel="external">也有人说</a> 它有类似线程池的机制：</p>
+<blockquote>
+<p>  The GCC OpenMP run-time <code>libgomp</code> implements thread teams on POSIX systems by something akin to a thread pool)</p>
+</blockquote>
+<p>看起来似乎都很好，似乎我们并不用担心每次进入 OpenMP 并行区域时都有比较大的 overhead。但是实践中我们的确遇到了这样的问题。那我就动手试试，测一下就知道了。</p>
+<p>Test code:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdlib.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;x86intrin.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;omp.h&gt;</span></span></div><div class="line"></div><div class="line"><span class="comment">// sizeof(int) * 16 should &gt;= 64 bytes so each thread uses </span></div><div class="line"><span class="comment">// a complete cache line (64 bytes) to avoid false sharing</span></div><div class="line"><span class="meta">#<span class="meta-keyword">define</span> LEN   1024  </span></div><div class="line"><span class="meta">#<span class="meta-keyword">define</span> NTEST 1000</span></div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">int</span> argc, <span class="keyword">char</span> **argv)</span></span></div><div class="line">&#123;</div><div class="line">	<span class="keyword">int</span> nthreads;</div><div class="line">	<span class="keyword">if</span> (argc &gt;= <span class="number">2</span>) nthreads = atoi(argv[<span class="number">1</span>]);</div><div class="line">	<span class="keyword">if</span> (nthreads &lt; <span class="number">1</span> || nthreads &gt; omp_get_max_threads()) nthreads = omp_get_max_threads();</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"Number of OpenMP threads : %d\n"</span>, nthreads);</div><div class="line">	</div><div class="line">	<span class="keyword">int</span> *a = (<span class="keyword">int</span>*) _mm_malloc(<span class="keyword">sizeof</span>(<span class="keyword">int</span>) * LEN * nthreads, <span class="number">64</span>);</div><div class="line">	<span class="keyword">int</span> *b = (<span class="keyword">int</span>*) _mm_malloc(<span class="keyword">sizeof</span>(<span class="keyword">int</span>) * LEN * nthreads, <span class="number">64</span>);</div><div class="line">	</div><div class="line">	<span class="comment">// Use first-touch policy to initialize these arrays</span></div><div class="line">	<span class="comment">// Maybe we don't need this, since the segment used by each thread will be kept in L1 cache</span></div><div class="line">	<span class="meta">#<span class="meta-keyword">pragma</span> omp parallel for schedule(static) num_threads(nthreads)</span></div><div class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; LEN * nthreads; i++)</div><div class="line">	&#123;</div><div class="line">		a[i] = i + <span class="number">114</span>;</div><div class="line">		b[i] = i + <span class="number">514</span>;</div><div class="line">	&#125;</div><div class="line">	</div><div class="line">	<span class="keyword">double</span> st, et, ut0, ut1;</div><div class="line">	</div><div class="line">	<span class="comment">// Single thread test</span></div><div class="line">	ut0 = <span class="number">0.0</span>;</div><div class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> itest = <span class="number">0</span>; itest &lt; NTEST; itest++)</div><div class="line">	&#123;</div><div class="line">		st = omp_get_wtime();</div><div class="line">		<span class="meta">#<span class="meta-keyword">pragma</span> vector</span></div><div class="line">		<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; LEN; i++) a[i] += b[i];</div><div class="line">		et = omp_get_wtime();</div><div class="line">		ut0 += et - st;</div><div class="line">		b[itest % LEN] -= <span class="number">1</span>; </div><div class="line">	&#125;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"%d single thread jobs, used time = %.4lf (ms)\n"</span>, NTEST, ut0 * <span class="number">1000.0</span>);</div><div class="line">	ut0 /= (<span class="keyword">double</span>) NTEST;</div><div class="line">	</div><div class="line">	<span class="comment">// Multithreading test</span></div><div class="line">	ut1 = <span class="number">0.0</span>;</div><div class="line">	<span class="keyword">for</span> (<span class="keyword">int</span> itest = <span class="number">0</span>; itest &lt; NTEST; itest++)</div><div class="line">	&#123;</div><div class="line">		st = omp_get_wtime();</div><div class="line">		<span class="meta">#<span class="meta-keyword">pragma</span> omp parallel for schedule(static) num_threads(nthreads)</span></div><div class="line">		<span class="meta">#<span class="meta-keyword">pragma</span> vector</span></div><div class="line">		<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; LEN * nthreads; i++) a[i] += b[i];</div><div class="line">		et = omp_get_wtime();</div><div class="line">		ut1 += et - st;</div><div class="line">		b[itest % LEN] -= <span class="number">1</span>; </div><div class="line">	&#125;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"%d multi-thread jobs, used time  = %.4lf (ms)\n"</span>, NTEST, ut1 * <span class="number">1000.0</span>);</div><div class="line">	ut1 /= (<span class="keyword">double</span>) NTEST;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"OpenMP thread fork average time  = %.4lf (ms)\n"</span>, <span class="number">1000.0</span> * (ut1 - ut0));</div><div class="line">	</div><div class="line">	_mm_free(a);</div><div class="line">	_mm_free(b);</div><div class="line">	<span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>Test script：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">icc -v</div><div class="line">gcc -v</div><div class="line"></div><div class="line">icc -qopenmp -O3 -xHost        -std=gnu99 omp_fork_test.c -o omp_fork_test.icc</div><div class="line">gcc -fopenmp -O3 -march=native -std=gnu99 omp_fork_test.c -o omp_fork_test.gcc</div><div class="line"></div><div class="line">export OMP_PLACES=threads</div><div class="line">export OMP_PROC_BIND=true</div><div class="line"></div><div class="line">for nt in 2, 4, 8, 16, 32, 64, 128, 256; do</div><div class="line">	./omp_fork_test.icc $nt</div><div class="line">	./omp_fork_test.gcc $nt</div><div class="line">done</div></pre></td></tr></table></figure>
+<h2 id="测试平台与结果"><a href="#测试平台与结果" class="headerlink" title="测试平台与结果"></a>测试平台与结果</h2><p>测试结果的单位是毫秒（ms）。</p>
+<h3 id="Sandy-Bridge"><a href="#Sandy-Bridge" class="headerlink" title="Sandy Bridge"></a>Sandy Bridge</h3><ul>
+<li><p>Intel Xeon E5 2670: 8 cores * 2 hyper-threads @ 2.6 GHz</p>
+</li>
+<li><p>Ubuntu 16.04.3 LTS x64, GCC 5.4.0, ICC 17.0.4</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Threads</th>
+<th>2</th>
+<th>4</th>
+<th>8</th>
+<th>16</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ICC</td>
+<td>0.0016</td>
+<td>0.0017</td>
+<td>0.0014</td>
+<td>0.0021</td>
+</tr>
+<tr>
+<td>GCC</td>
+<td>0.0009</td>
+<td>0.0015</td>
+<td>0.0018</td>
+<td>0.0034</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Ivy-Bridge"><a href="#Ivy-Bridge" class="headerlink" title="Ivy Bridge"></a>Ivy Bridge</h3><ul>
+<li><p>Intel Xeon E5 1620: 4 cores * 2 hyper-threads @ 2.6 GHz</p>
+</li>
+<li><p>Ubuntu 18.04.1 LTS x64, GCC 7.3.0, ICC 17.0.4</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Threads</th>
+<th>2</th>
+<th>4</th>
+<th>8</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ICC</td>
+<td>0.0009</td>
+<td>0.0011</td>
+<td>0.0031</td>
+</tr>
+<tr>
+<td>GCC</td>
+<td>0.0008</td>
+<td>0.0017</td>
+<td>0.0056</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Haswell"><a href="#Haswell" class="headerlink" title="Haswell"></a>Haswell</h3><ul>
+<li><p>Intel Xeon E5-2698v3: 2 sockets <em> 16 cores </em> 2 hyper-threads @ 2.3 GHz</p>
+</li>
+<li><p>SUSE Linux Enterprise Server 12 SP3 x64, GCC 7.3.0, ICC 17.0.3</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Threads</th>
+<th>2</th>
+<th>4</th>
+<th>8</th>
+<th>16</th>
+<th>32</th>
+<th>64</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ICC</td>
+<td>0.0015</td>
+<td>0.0017</td>
+<td>0.0019</td>
+<td>0.0025</td>
+<td>0.0028</td>
+<td>0.0033</td>
+</tr>
+<tr>
+<td>GCC</td>
+<td>0.0012</td>
+<td>0.0017</td>
+<td>0.0023</td>
+<td>0.0035</td>
+<td>0.0062</td>
+<td>0.0145</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Knights-Landing"><a href="#Knights-Landing" class="headerlink" title="Knights Landing"></a>Knights Landing</h3><ul>
+<li><p>Intel Xeon Phi 7210 (Knights Landing): 64 cores * 4 hyper-threads @ 1.3 GHz</p>
+</li>
+<li><p>CentOS 7.1 x64, GCC 4.8.5, ICC 17.0.4</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Threads</th>
+<th>2</th>
+<th>4</th>
+<th>8</th>
+<th>16</th>
+<th>32</th>
+<th>64</th>
+<th>128</th>
+<th>256</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ICC</td>
+<td>0.0033</td>
+<td>0.0032</td>
+<td>0.0039</td>
+<td>0.0048</td>
+<td>0.0066</td>
+<td>0.0072</td>
+<td>0.0097</td>
+<td>0.0149</td>
+</tr>
+<tr>
+<td>GCC</td>
+<td>0.0021</td>
+<td>0.0029</td>
+<td>0.0041</td>
+<td>0.0063</td>
+<td>0.0116</td>
+<td>0.0198</td>
+<td>0.0429</td>
+<td>0.1387</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Skylake"><a href="#Skylake" class="headerlink" title="Skylake"></a>Skylake</h3><ul>
+<li><p>Intel Xeon Platinum 8160: 2 sockets <em> 24 cores </em> 2 hyper-threads @ 2.1 GHz</p>
+</li>
+<li><p>CentOS 7.3 x64, GCC 5.4.0, ICC 17.0.4</p>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Threads</th>
+<th>2</th>
+<th>4</th>
+<th>8</th>
+<th>16</th>
+<th>32</th>
+<th>48</th>
+<th>96</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ICC</td>
+<td>0.0014</td>
+<td>0.0016</td>
+<td>0.0020</td>
+<td>0.0025</td>
+<td>0.0029</td>
+<td>0.0033</td>
+<td>0.0040</td>
+</tr>
+<tr>
+<td>GCC</td>
+<td>0.0026</td>
+<td>0.0030</td>
+<td>0.0037</td>
+<td>0.0068</td>
+<td>0.0103</td>
+<td>0.0145</td>
+<td>0.0286</td>
+</tr>
+</tbody>
+</table>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>事实证明，Intel 编译器和 GCC 使用 OpenMP 时，每次进入 OpenMP 区域仍然有 overhead：只需要把代码里的 <code>NTEST</code> 值改大，就可以看到使用 OpenMP 开多线程时总的执行时间变长了，但是单线程执行同样计算量的耗时变化不大。网上也有人 <a href="https://software.intel.com/en-us/forums/intel-c-compiler/topic/707453" target="_blank" rel="external">提到</a> 可以用 <code>OMP_WAIT_POLICY</code> 以及 <code>KMP_BLOCKTIME</code> 来设置 OpenMP 线程在执行完毕以后等待下一个任务多久才进入休眠状态。测试发现，默认使用的是 <code>OMP_WAIT_POLICY=passive</code>, 使用 <code>OMP_WAIT_POLICY=active</code> 会使测试程序更慢。这样看来，这些编译器应该都实现了线程池或类似的机制，但是每次进入并行区域时唤醒睡眠的线程仍然有一定的 overhead。</p>
+<p>从测试数据上来看，ICC 和 GCC 平均每次进入并行区域的时间都随着线程数的增加而增加，但是 ICC 增加得没有那么快。这个 overhead 似乎受 CPU 架构的影响不大，但受 CPU 主频的影响更多。总体而言，这个 overhead 的量级并不是很大，没有到 16ms 那么大。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      
+        <a data-url="http://enigmahuang.github.io/2018/09/20/OpenMP_fork_join_cost/" data-id="cjmbg3dcp0007y82b8v85r746" class="article-share-link">分享到</a>
+      
+
+      
+
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ICC/">ICC</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/OpenMP/">OpenMP</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2018/09/05/MPI_mmap_trim/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">上一篇</strong>
+      <div class="article-nav-title">禁用 mmap 和 memory trip 来加速 MPI RMA</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+</section>
+      
+      <aside id="sidebar">
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">標簽</h3>
+    <div class="widget">
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/CUDA/">CUDA</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Cache/">Cache</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/GEMM/">GEMM</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ICC/">ICC</a><span class="tag-list-count">4</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/LinearSystemSolver/">LinearSystemSolver</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/">Linux</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MPI/">MPI</a><span class="tag-list-count">7</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Multigrid/">Multigrid</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/NFS/">NFS</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/OpenCL/">OpenCL</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/OpenMP/">OpenMP</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PDE/">PDE</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SIMD/">SIMD</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Sorting/">Sorting</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/helloworld/">helloworld</a><span class="tag-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">標簽雲</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/CUDA/" style="font-size: 15px;">CUDA</a> <a href="/tags/Cache/" style="font-size: 12.5px;">Cache</a> <a href="/tags/GEMM/" style="font-size: 12.5px;">GEMM</a> <a href="/tags/ICC/" style="font-size: 17.5px;">ICC</a> <a href="/tags/LinearSystemSolver/" style="font-size: 15px;">LinearSystemSolver</a> <a href="/tags/Linux/" style="font-size: 15px;">Linux</a> <a href="/tags/MPI/" style="font-size: 20px;">MPI</a> <a href="/tags/Multigrid/" style="font-size: 15px;">Multigrid</a> <a href="/tags/NFS/" style="font-size: 10px;">NFS</a> <a href="/tags/OpenCL/" style="font-size: 10px;">OpenCL</a> <a href="/tags/OpenMP/" style="font-size: 10px;">OpenMP</a> <a href="/tags/PDE/" style="font-size: 15px;">PDE</a> <a href="/tags/SIMD/" style="font-size: 15px;">SIMD</a> <a href="/tags/Sorting/" style="font-size: 10px;">Sorting</a> <a href="/tags/helloworld/" style="font-size: 10px;">helloworld</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">歸檔</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">September 2018</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/05/">May 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/02/">February 2018</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/01/">January 2018</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/12/">December 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/09/">September 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/08/">August 2017</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/07/">July 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/06/">June 2017</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2017/02/">February 2017</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/11/">November 2016</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">近期文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2018/09/20/OpenMP_fork_join_cost/">OpenMP fork-join cost 测试</a>
+          </li>
+        
+          <li>
+            <a href="/2018/09/05/MPI_mmap_trim/">禁用 mmap 和 memory trip 来加速 MPI RMA</a>
+          </li>
+        
+          <li>
+            <a href="/2018/05/24/Why_you_need_O3_and_ICC/">比起C++性能榨汁机，你可能更需要的是 -O3 和 ICC</a>
+          </li>
+        
+          <li>
+            <a href="/2018/02/04/Poisson2D_FEM/">2D Poisson 方程与 Finite Element Method</a>
+          </li>
+        
+          <li>
+            <a href="/2018/01/13/CUDA_OpenCL_compare/">CUDA 与 OpenCL 简明对比</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">友情鏈接</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="https://enigmahuang.me" target="_blank">My Blog</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+      
+    </div>
+    <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2018 Enigma Huang<br>
+      Powered by <a href="//hexo.io/" target="_blank">Hexo</a>
+      .
+      Theme by <a href="https://github.com/xiangming/landscape-plus" target="_blank">Landscape-plus</a>
+    </div>
+  </div>
+</footer>
+  </div>
+  <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+  <!-- totop start -->
+<div id="totop">
+<a title="返回頂部"><img src="/img/scrollup.png"/></a>
+</div>
+
+<!-- totop end -->
+
+
+<!-- 百度分享 start -->
+
+<!-- 百度分享 end -->
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+
+
+
+
+<! -- mathjax config similar to math.stackexchange -->
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+                processEscapes: true
+                    
+}
+  
+        });
+</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+                  
+}
+    
+        });
+</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Queue(function() {
+            var all = MathJax.Hub.getAllJax(), i;
+            for(i=0; i < all.length; i += 1) {
+                            all[i].SourceElement().parentNode.className += ' has-jax';
+                                    
+            }
+                
+        });
+</script>
+
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+<script src="/js/script.js"></script>
+
+</div><!-- hexo-inject:begin --><!-- hexo-inject:end -->
+</body>
+</html>
